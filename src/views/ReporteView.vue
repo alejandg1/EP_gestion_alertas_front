@@ -117,17 +117,17 @@
             <div class="form-group">
               <label for="indiv_recurso">Recurso Asignado Inicial:</label>
               <select id="indiv_recurso" v-model="formNovedad.recurso_asignado">
-                <option value="INS-ALC">INS-ALC (Inspector Interagua)</option>
-                <option value="HK">HK (Hydrocleaner)</option>
-                <option value="CAMIONETA-OP-CN">CAMIONETA-OP-CN (Contratista)</option>
-                <option value="MAQUINARIA OBRAS PUBLICAS">MAQUINARIA OBRAS PUBLICAS</option>
-                <option value="EQUIPO GESTION DE RIESGOS">EQUIPO GESTION DE RIESGOS</option>
-                <option value="CUADRILLA PARQUES">CUADRILLA PARQUES</option>
-                <option value="MAQUINARIA PARQUES">MAQUINARIA PARQUES</option>
-                <option value="PATRULLAS ATM">PATRULLAS ATM</option>
-                <option value="ASEO CANTONAL - URVASEO">ASEO CANTONAL - URVASEO</option>
-                <option value="INSPECTOR URVASEO">INSPECTOR URVASEO</option>
-                <option value="CUADRILLA URVASEO">CUADRILLA URVASEO</option>
+                <option value="INS-ALC 🚙">INS-ALC 🚙</option>
+                <option value="HK 🚛">HK 🚛</option>
+                <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
+                <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
+                <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
+                <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
+                <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
+                <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
+                <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
+                <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
+                <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
               </select>
             </div>
           </div>
@@ -136,9 +136,9 @@
             <div class="form-group">
               <label for="indiv_estado">Estado Inicial:</label>
               <select id="indiv_estado" v-model="formNovedad.estado_operativo">
-                <option value="PENDIENTE">PENDIENTE</option>
-                <option value="EN ATENCION">EN ATENCION</option>
-                <option value="ATENDIDO">ATENDIDO</option>
+                <option value="⛔PENDIENTE">⛔PENDIENTE</option>
+                <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
+                <option value="✅ATENDIDO">✅ATENDIDO</option>
               </select>
             </div>
 
@@ -423,16 +423,8 @@
         </div>
       </div>
 
-      <!-- COLUMNA DERECHA: 5. Mapa, 3. Novedades Consolidadas, 4. Reporte Oficial -->
+      <!-- COLUMNA DERECHA: 3. Novedades Consolidadas, 4. Reporte Oficial, 5. Mapa -->
       <div class="layout-column">
-        <!-- 5. MAPA DE NOVEDADES (CARTO + LEAFLET) -->
-        <div class="card section-mapa">
-          <div class="card-header">
-            <h2>5. Mapa de Georreferenciacion y Densidad</h2>
-          </div>
-          <MapLeaflet :novedades="reporte.novedades || []" />
-        </div>
-
         <!-- 3. NOVEDADES CONSOLIDADAS -->
         <div class="card section-novedades">
           <div class="card-header">
@@ -470,26 +462,26 @@
                 <div class="meta-field">
                   <label>Recurso Asignado:</label>
                   <select v-model="nov.recurso_asignado">
-                    <option value="INS-ALC">INS-ALC</option>
-                    <option value="HK">HK</option>
-                    <option value="CAMIONETA-OP-CN">CAMIONETA-OP-CN</option>
-                    <option value="MAQUINARIA OBRAS PUBLICAS">MAQUINARIA OBRAS PUBLICAS</option>
-                    <option value="EQUIPO GESTION DE RIESGOS">EQUIPO GESTION DE RIESGOS</option>
-                    <option value="CUADRILLA PARQUES">CUADRILLA PARQUES</option>
-                    <option value="MAQUINARIA PARQUES">MAQUINARIA PARQUES</option>
-                    <option value="PATRULLAS ATM">PATRULLAS ATM</option>
-                    <option value="ASEO CANTONAL - URVASEO">ASEO CANTONAL - URVASEO</option>
-                    <option value="INSPECTOR URVASEO">INSPECTOR URVASEO</option>
-                    <option value="CUADRILLA URVASEO">CUADRILLA URVASEO</option>
+                    <option value="INS-ALC 🚙">INS-ALC 🚙</option>
+                    <option value="HK 🚛">HK 🚛</option>
+                    <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
+                    <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
+                    <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
+                    <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
+                    <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
+                    <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
+                    <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
+                    <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
+                    <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
                   </select>
                 </div>
 
                 <div class="meta-field">
                   <label>Estado:</label>
                   <select v-model="nov.estado_operativo">
-                    <option value="PENDIENTE">PENDIENTE</option>
-                    <option value="EN ATENCION">EN ATENCION</option>
-                    <option value="ATENDIDO">ATENDIDO</option>
+                    <option value="⛔PENDIENTE">⛔PENDIENTE</option>
+                    <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
+                    <option value="✅ATENDIDO">✅ATENDIDO</option>
                   </select>
                 </div>
               </div>
@@ -549,8 +541,15 @@
             >
               {{ descargandoWord ? 'Generando documento Word...' : 'Descargar Informe Word Oficial (.docx)' }}
             </button>
-
           </div>
+        </div>
+
+        <!-- 5. MAPA DE NOVEDADES (CARTO + LEAFLET) -->
+        <div class="card section-mapa">
+          <div class="card-header">
+            <h2>5. Mapa de Georreferenciacion y Densidad</h2>
+          </div>
+          <MapLeaflet :novedades="reporte.novedades || []" />
         </div>
       </div>
     </div>

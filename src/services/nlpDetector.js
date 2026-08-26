@@ -1,36 +1,41 @@
 import { AGAS_WGS84 } from './agaData.js';
 
+export const emojisNumeros = [
+  "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟",
+  "11️⃣", "12️⃣", "13️⃣", "14️⃣", "15️⃣", "16️⃣", "17️⃣", "18️⃣", "19️⃣", "20️⃣"
+];
+
 export const textoEventoIndividual = {
-  AGUA: "acumulacion de agua",
-  ARBOL: "caida de arbol",
+  AGUA: "acumulación de agua",
+  ARBOL: "caída de árbol",
   DESLIZAMIENTO: "deslizamiento",
-  POSTE: "caida de postes",
-  SINIESTRO: "siniestros de transito",
+  POSTE: "caída de postes",
+  SINIESTRO: "siniestros de tránsito",
   INUNDACION: "inundaciones",
   VENDAVAL: "vendavales",
-  AFECTACION: "afectacion estructural"
+  AFECTACION: "afectación estructural"
 };
 
 export const institucionesPorTipo = {
   AGUA: "@emapagye @interagua",
-  ARBOL: "@parques_gye @alcaldiagye",
-  DESLIZAMIENTO: "@Riesgos_Ec @Obras_Gye",
-  POSTE: "@CNEL_EP @ATM_Transito",
+  ARBOL: "@Urvaseo @Segura_EP @AmbienteGYE @parquesgye",
+  DESLIZAMIENTO: "@ObrasGuayaquil @Segura_EP @BomberosGYE",
+  POSTE: "@CNEL_EP @Segura_EP",
   SINIESTRO: "@ATM_Transito @BomberosGYE",
-  INUNDACION: "@emapagye @interagua @BomberosGYE",
-  VENDAVAL: "@BomberosGYE @Riesgos_Ec",
-  AFECTACION: "@Obras_Gye @Riesgos_Ec"
+  INUNDACION: "@emapagye @interagua @BomberosGYE @Segura_EP",
+  VENDAVAL: "@Segura_EP @BomberosGYE @CNEL_EP",
+  AFECTACION: "@Segura_EP @BomberosGYE @ObrasGuayaquil"
 };
 
 export const estiloMapaPorTipo = {
-  AGUA: { color: "#0984e3", nombre: "Acumulacion de agua" },
-  ARBOL: { color: "#20bf6b", nombre: "Caida de arbol" },
-  DESLIZAMIENTO: { color: "#8e5b3a", nombre: "Deslizamiento" },
-  POSTE: { color: "#f1c40f", nombre: "Caida de poste" },
-  SINIESTRO: { color: "#e74c3c", nombre: "Siniestro de transito" },
-  INUNDACION: { color: "#0069d9", nombre: "Inundacion" },
-  VENDAVAL: { color: "#7f8c8d", nombre: "Vendaval" },
-  AFECTACION: { color: "#8e44ad", nombre: "Afectacion estructural" }
+  AGUA: { color: "#0984e3", nombre: "Acumulación de agua", emoji: "🚰" },
+  ARBOL: { color: "#20bf6b", nombre: "Caída de árbol", emoji: "🌳" },
+  DESLIZAMIENTO: { color: "#8e5b3a", nombre: "Deslizamiento", emoji: "⛰️" },
+  POSTE: { color: "#f1c40f", nombre: "Caída de poste", emoji: "⚡" },
+  SINIESTRO: { color: "#e74c3c", nombre: "Siniestro de tránsito", emoji: "🚗" },
+  INUNDACION: { color: "#0069d9", nombre: "Inundación", emoji: "🌊" },
+  VENDAVAL: { color: "#7f8c8d", nombre: "Vendaval", emoji: "💨" },
+  AFECTACION: { color: "#8e44ad", nombre: "Afectación estructural", emoji: "🏚️" }
 };
 
 export function puntoEnAnillo(punto, anillo) {
@@ -116,6 +121,14 @@ export function normalizarDescripcionNLP(texto) {
     .toUpperCase();
 }
 
+export function preservarEmoticonesWhatsApp(texto) {
+  return String(texto || "")
+    .normalize("NFC")
+    .replace(/\uFE0E/g, "\uFE0F")
+    .replace(/([0-9#*])(?!\uFE0F)\u20E3/g, "$1\uFE0F\u20E3");
+}
+
 export function abrirWhatsApp(texto) {
-  window.open("https://wa.me/?text=" + encodeURIComponent(texto || ""), "_blank", "noopener");
+  const mensaje = preservarEmoticonesWhatsApp(texto);
+  window.open("https://wa.me/?text=" + encodeURIComponent(mensaje), "_blank", "noopener");
 }
