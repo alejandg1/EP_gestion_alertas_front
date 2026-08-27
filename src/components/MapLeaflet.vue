@@ -1,18 +1,19 @@
 <template>
   <div class="map-container-root">
     <div class="map-toolbar">
-      <label class="checkbox-label">
-        <input type="checkbox" v-model="mostrarKDE" @change="actualizarKDE" />
-        Mostrar densidad de calor
-      </label>
-      <label class="checkbox-label">
-        <input type="checkbox" v-model="mostrarAGA" @change="actualizarAGA" />
-        Mostrar zonas AGA
-      </label>
-      <button type="button" class="btn btn-secondary btn-sm" @click="ajustarVista">
-        Ajustar a eventos
+      <div class="map-controls-group">
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="mostrarKDE" @change="actualizarKDE" />
+          <span>Mostrar densidad de calor</span>
+        </label>
+        <label class="checkbox-label">
+          <input type="checkbox" v-model="mostrarAGA" @change="actualizarAGA" />
+          <span>Mostrar zonas AGA</span>
+        </label>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos">
+        <i class="fa-solid fa-location-crosshairs"></i> Centrar en eventos
       </button>
-      <span class="events-count-badge">{{ novedadesValidas.length }} eventos georreferenciados</span>
     </div>
 
     <div ref="mapElement" class="leaflet-map-box"></div>
@@ -143,20 +144,20 @@ function renderMarcadores() {
     const [lat, lng] = coords;
 
     const tipoKey = item.tipo_evento || item.tipo || 'AGUA';
-    const estilo = estiloMapaPorTipo[tipoKey] || { color: '#0a3d62', nombre: tipoKey };
+    const estilo = estiloMapaPorTipo[tipoKey] || { color: '#0a3d62', nombre: tipoKey, emoji: '📍' };
 
-    // Custom DivIcon sin emojis
+    // Custom DivIcon con Emoji oficial de categoría (como en el HTML original)
     const iconHtml = `
-      <div class="custom-map-pin" style="background-color: ${estilo.color};">
-        <span>${index + 1}</span>
+      <div class="custom-map-pin" style="background-color: ${estilo.color};" title="${estilo.nombre}">
+        <span class="pin-emoji">${estilo.emoji || '📍'}</span>
       </div>
     `;
 
     const customIcon = L.divIcon({
       html: iconHtml,
       className: 'leaflet-custom-marker',
-      iconSize: [26, 26],
-      iconAnchor: [13, 13],
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
       popupAnchor: [0, -14]
     });
 
@@ -172,19 +173,30 @@ function renderMarcadores() {
       fotosHtml += '</div>';
     }
 
+    const coordTexto = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    const nombreTipo = textoEventoIndividual[tipoKey] || estilo.nombre || tipoKey;
+    const direccionTexto = item.direccion || item.dir || 'Sin dirección registrada';
+    const recursoTexto = item.recurso_asignado || item.recurso || 'N/A';
+    const estadoTexto = item.estado_operativo || item.estado || '⛔PENDIENTE';
+    const agaTexto = item.aga || 'N/D';
+    const horaTexto = item.hora_evento || item.hora || '00:00';
+
     const popupContent = `
       <div class="map-popup-card">
         <div class="popup-header" style="border-left: 4px solid ${estilo.color};">
-          <strong>Evento #${index + 1}: ${estilo.nombre}</strong>
+          <strong>${estilo.emoji || '📍'} Evento #${index + 1}: ${nombreTipo}</strong>
         </div>
-        <p class="popup-dir">${item.direccion || item.dir || 'Sin direccion'}</p>
+        <p class="popup-dir">${direccionTexto}</p>
         <div class="popup-meta">
-          <span><b>AGA:</b> ${item.aga || 'N/D'}</span>
-          <span><b>Hora:</b> ${item.hora_evento || item.hora || '00:00'}</span>
+          <span><b>Coordenadas:</b> ${coordTexto}</span>
         </div>
         <div class="popup-meta">
-          <span><b>Recurso:</b> ${item.recurso_asignado || item.recurso || 'N/A'}</span>
-          <span><b>Estado:</b> ${item.estado_operativo || item.estado || 'PENDIENTE'}</span>
+          <span><b>AGA:</b> ${agaTexto}</span>
+          <span><b>Hora:</b> ${horaTexto}</span>
+        </div>
+        <div class="popup-meta">
+          <span><b>Recurso:</b> ${recursoTexto}</span>
+          <span><b>Estado:</b> ${estadoTexto}</span>
         </div>
         ${fotosHtml}
       </div>
@@ -268,35 +280,66 @@ onBeforeUnmount(() => {
 
 .map-toolbar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: #f8fafc;
   border-radius: 6px;
   border: 1px solid #e2e8f0;
 }
 
+.map-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
 .checkbox-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
+  gap: 7px;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #334155;
   cursor: pointer;
   margin: 0;
+  user-select: none;
   text-transform: none;
 }
 
-.events-count-badge {
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #0984e3;
+  margin: 0;
+}
+
+.btn-ajustar {
   margin-left: auto;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #0a3d62;
-  background: #e0f2fe;
-  padding: 3px 8px;
-  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .map-controls-group {
+    justify-content: space-between;
+  }
+  .btn-ajustar {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .leaflet-map-box {
@@ -334,18 +377,31 @@ onBeforeUnmount(() => {
 }
 
 :deep(.custom-map-pin) {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: 11px;
-  font-weight: 800;
+  font-size: 13px;
   font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+:deep(.custom-map-pin:hover) {
+  transform: scale(1.18);
+  z-index: 9999 !important;
+}
+
+:deep(.pin-emoji) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 :deep(.aga-tooltip) {

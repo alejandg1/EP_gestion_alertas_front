@@ -10,7 +10,7 @@
 
       <div class="dashboard-actions">
         <button type="button" class="btn btn-outline" @click="showModalRegister = true">
-          Registrar Operador
+          <i class="fa-solid fa-user-plus"></i> Registrar Operador
         </button>
         <button
           type="button"
@@ -18,7 +18,9 @@
           @click="crearNuevoReporte"
           :disabled="creandoReporte"
         >
-          {{ creandoReporte ? 'Creando Reporte...' : '+ Crear Nuevo Reporte' }}
+          <i v-if="creandoReporte" class="fa-solid fa-spinner fa-spin"></i>
+          <i v-else class="fa-solid fa-file-circle-plus"></i>
+          {{ creandoReporte ? 'Creando Reporte...' : 'Crear Nuevo Reporte' }}
         </button>
       </div>
     </div>
@@ -31,17 +33,20 @@
           v-model="busqueda"
           placeholder="Buscar por RDS, titulo o colaborador..."
         />
-        <button v-if="busqueda" class="btn-clear" @click="busqueda = ''">X</button>
+        <button v-if="busqueda" class="btn-clear" @click="busqueda = ''" title="Limpiar busqueda">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
       <div class="stats-group">
         <span class="stat-pill">
-          Total Reportes: <b>{{ reportes.length }}</b>
+          <i class="fa-solid fa-folder-open"></i> Total Reportes: <b>{{ reportes.length }}</b>
         </span>
         <span class="stat-pill">
-          Total Novedades: <b>{{ totalNovedadesCount }}</b>
+          <i class="fa-solid fa-triangle-exclamation"></i> Total Novedades: <b>{{ totalNovedadesCount }}</b>
         </span>
         <button class="btn btn-sm btn-secondary" @click="cargarReportes" :disabled="loading" title="Recargar lista">
+          <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': loading }"></i>
           {{ loading ? 'Cargando...' : 'Actualizar' }}
         </button>
       </div>
@@ -94,10 +99,10 @@
 
         <div class="card-footer">
           <span class="events-badge">
-            {{ (rep.novedades || []).length }} Novedades
+            <i class="fa-solid fa-list-check"></i> {{ (rep.novedades || []).length }} Novedades
           </span>
           <button type="button" class="btn btn-sm btn-primary" @click.stop="abrirReporte(rep._id)">
-            Abrir Sala ->
+            Abrir Reporte <i class="fa-solid fa-arrow-right"></i>
           </button>
         </div>
       </div>

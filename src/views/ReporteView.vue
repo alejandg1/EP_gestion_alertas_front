@@ -3,8 +3,8 @@
     <!-- BARRA SUPERIOR DE SALA SITUACIONAL -->
     <div class="top-nav-bar">
       <div class="nav-left">
-        <router-link to="/" class="btn btn-secondary btn-sm">
-          &larr; Volver
+        <router-link to="/reportes" class="btn btn-secondary btn-sm">
+          <i class="fa-solid fa-arrow-left fa-lg" style="color: rgb(236, 234, 234);"></i> Volver a Reportes
         </router-link>
         <img src="/icons/icon_blanco.png" alt="Segura EP" class="report-nav-logo" />
         <span class="report-current-tag">
@@ -18,7 +18,7 @@
           <span>{{ isSocketConnected ? 'Conectado' : 'Desconectado' }}</span>
         </div>
         <span v-if="usuario" class="user-pill">
-          Operador: {{ usuario.nombre || usuario.correo }}
+          {{usuario.rol}}: {{ usuario.nombre || usuario.correo }}
         </span>
       </div>
     </div>
@@ -50,7 +50,7 @@
           </div>
 
           <div v-if="nlpDetectado" class="nlp-detection-badge">
-            <span>Deteccion Inteligente: <b>{{ nlpLabel }}</b></span>
+            <span>🤖 <b>Detección Inteligente:</b> {{ nlpLabel }}</span>
           </div>
 
           <div class="grid-2">
@@ -86,14 +86,25 @@
             </div>
 
             <div class="form-group">
-              <label for="indiv_aga">Zona AGA:</label>
+              <label for="indiv_aga">Zona AGA (Automática / Editable):</label>
               <input
                 id="indiv_aga"
                 type="text"
                 v-model="formNovedad.aga"
                 placeholder="A01, A09..."
-                @input="formNovedad.agaManual = true"
+                @input="onAgaManualInput"
               />
+              <div v-if="agaStatus.mensaje" :class="['aga-spatial-status', agaStatus.tipo]">
+                {{ agaStatus.mensaje }}
+              </div>
+              <button
+                type="button"
+                class="btn-geo"
+                @click="recalcularAGADesdeCoordenadas"
+                title="Recalcular zona AGA a partir de las coordenadas WGS84"
+              >
+                <i class="fa-solid fa-location-crosshairs"></i> Recalcular desde coordenadas
+              </button>
             </div>
 
             <div class="form-group">
@@ -154,7 +165,8 @@
                   @change="manejarCargaFotos"
                 />
                 <label for="indiv_fotos_input" class="upload-trigger-btn" :class="{ 'disabled-upload': fotosSeleccionadas.length >= 2 }">
-                  <span>{{ fotosSeleccionadas.length >= 2 ? 'Limite de 2 fotos alcanzado' : '+ Adjuntar fotografias' }}</span>
+                  <i class="fa-solid fa-camera"></i>
+                  <span>{{ fotosSeleccionadas.length >= 2 ? 'Límite de 2 fotos alcanzado' : 'Adjuntar fotografías' }}</span>
                 </label>
               </div>
 
@@ -168,7 +180,9 @@
                     title="Clic para ampliar"
                   />
                   <span class="photo-badge">Foto {{ idx + 1 }}</span>
-                  <button type="button" class="btn-remove-photo" @click.stop="removerFoto(idx)" title="Quitar foto">&times;</button>
+                  <button type="button" class="btn-remove-photo" @click.stop="removerFoto(idx)" title="Quitar foto">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -181,21 +195,22 @@
 
           <div class="btn-row">
             <button type="button" class="btn btn-secondary btn-sm" @click="copiarAlertaIndividual">
-              Copiar Texto
+              <i class="fa-solid fa-copy"></i> Copiar Texto
             </button>
             <button type="button" class="btn btn-success btn-sm" @click="enviarWaIndividual">
-              WhatsApp Texto
+              <i class="fa-brands fa-whatsapp"></i> WhatsApp
             </button>
-          </div>
-
           <button
             type="button"
-            class="btn btn-primary btn-block btn-consolidar"
+            class="btn btn-primary btn-sm btn-consolidar"
             :disabled="guardandoNovedad"
             @click="registrarYConsolidar"
           >
-            {{ guardandoNovedad ? 'Registrando...' : '+ Registrar y Consolidar en Reporte General' }}
+            <i v-if="guardandoNovedad" class="fa-solid fa-spinner fa-spin"></i>
+            <i v-else class="fa-solid fa-circle-plus"></i>
+            {{ guardandoNovedad ? 'Registrando novedad...' : 'Registrar y Consolidar en Reporte General' }}
           </button>
+          </div>
         </div>
 
         <!-- 2. PARAMETROS DEL REPORTE CONSOLIDADO -->
@@ -208,7 +223,9 @@
               @click="guardarParametrosReporte"
               :disabled="guardandoParametros"
             >
-              {{ guardandoParametros ? 'Guardando...' : 'Guardar Parametros' }}
+              <i v-if="guardandoParametros" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-floppy-disk"></i>
+              {{ guardandoParametros ? 'Guardando...' : 'Guardar Parámetros' }}
             </button>
           </div>
 
@@ -452,7 +469,7 @@
                   @click="eliminarNovedad(idx)"
                   title="Eliminar novedad"
                 >
-                  Eliminar
+                  <i class="fa-solid fa-trash-can"></i> Eliminar
                 </button>
               </div>
 
@@ -502,7 +519,7 @@
                   />
                   <span class="photo-count-tag">Foto {{ fIdx + 1 }}</span>
                   <div class="zoom-overlay">
-                    <span>🔍</span>
+                    <span><i class="fa-solid fa-magnifying-glass-plus"></i></span>
                   </div>
                 </div>
               </div>
@@ -525,23 +542,23 @@
 
           <div class="btn-row" style="margin-top: 10px;">
             <button type="button" class="btn btn-secondary btn-sm" @click="copiarConsolidado">
-              Copiar Reporte Consolidado
+              <i class="fa-solid fa-clipboard"></i> Copiar Reporte Consolidado
             </button>
             <button type="button" class="btn btn-success btn-sm" @click="enviarWaConsolidado">
-              Abrir en WhatsApp
+              <i class="fa-brands fa-whatsapp"></i> Abrir en WhatsApp
             </button>
-          </div>
-
-          <div class="export-actions-row">
             <button
               type="button"
-              class="btn btn-primary btn-block"
+              class="btn btn-primary btn-sm"
               :disabled="descargandoWord"
               @click="generarWord"
             >
+              <i v-if="descargandoWord" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-file-word"></i>
               {{ descargandoWord ? 'Generando documento Word...' : 'Descargar Informe Word Oficial (.docx)' }}
             </button>
           </div>
+
         </div>
 
         <!-- 5. MAPA DE NOVEDADES (CARTO + LEAFLET) -->
@@ -549,6 +566,28 @@
           <div class="card-header">
             <h2>5. Mapa de Georreferenciacion y Densidad</h2>
           </div>
+
+          <!-- Exportación SIG / Shapefile WGS84 -->
+          <div class="sig-export">
+            <div class="sig-field">
+              <label for="shp_fecha">Fecha de los eventos:</label>
+              <input type="date" id="shp_fecha" v-model="shpFecha" />
+            </div>
+            <button
+              type="button"
+              class="btn-sig"
+              :disabled="exportandoShapefile"
+              @click="descargarShapefile"
+            >
+              <i v-if="exportandoShapefile" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-file-zipper"></i>
+              {{ exportandoShapefile ? 'Generando Shapefile...' : 'Descargar Shapefile (.zip)' }}
+            </button>
+            <div class="sig-export-note">
+              {{ resumenExportacionSIG }}
+            </div>
+          </div>
+
           <MapLeaflet :novedades="reporte.novedades || []" />
         </div>
       </div>
@@ -559,11 +598,13 @@
     <!-- Modal Visor de Fotografia Ampliada (Lightbox) -->
     <div v-if="fotoModalUrl" class="lightbox-backdrop" @click="cerrarFotoModal">
       <div class="lightbox-card" @click.stop>
-        <button type="button" class="lightbox-close" @click="cerrarFotoModal" title="Cerrar">&times;</button>
+        <button type="button" class="lightbox-close" @click="cerrarFotoModal" title="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
         <img :src="fotoModalUrl" alt="Fotografia en alta resolucion" class="lightbox-image" />
         <div class="lightbox-footer">
           <a :href="fotoModalUrl" target="_blank" rel="noopener" class="btn btn-sm btn-outline-white">
-            Abrir en pestana nueva ↗
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir en pestaña nueva
           </a>
         </div>
       </div>
@@ -584,9 +625,13 @@ import {
   obtenerAGAPorCoordenadas,
   parsearCoordenadasNLP,
   normalizarDescripcionNLP,
-  abrirWhatsApp
+  evaluarEstadoAGA,
+  abrirWhatsApp,
+  emojisNumeros,
+  preservarEmoticonesWhatsApp
 } from '../services/nlpDetector.js';
 import { exportarReporteWord } from '../services/wordExport.js';
+import { exportarShapefileEventos, obtenerEventosSIGPorFecha } from '../services/shapefileExport.js';
 import {
   obtenerFechaActualISO,
   obtenerHoraActual,
@@ -608,11 +653,13 @@ const cargandoReporte = ref(false);
 const guardandoNovedad = ref(false);
 const guardandoParametros = ref(false);
 const descargandoWord = ref(false);
+const exportandoShapefile = ref(false);
 const sincronizandoExcel = ref(false);
 const showModalRegister = ref(false);
 const listaReportes = ref([]);
 
 const hoy = new Date().toISOString().split('T')[0];
+const shpFecha = ref(hoy);
 
 const reporte = reactive({
   _id: '',
@@ -648,19 +695,23 @@ const formNovedad = reactive({
   instituciones: '@emapagye @interagua',
   fecha: hoy,
   hora: obtenerHoraActual(),
-  aga: '',
+  aga: 'A09',
   agaManual: false,
-  coordenadasTexto: '',
-  lat: null,
-  lng: null,
-  recurso_asignado: 'INS-ALC',
-  estado_operativo: 'PENDIENTE'
+  coordenadasTexto: '-2.138694, -79.936833',
+  lat: -2.138694,
+  lng: -79.936833,
+  recurso_asignado: 'INS-ALC 🚙',
+  estado_operativo: '⛔PENDIENTE'
 });
 
 const nlpDetectado = ref(false);
 const nlpLabel = ref('');
 const previewAlertaInmediata = ref('');
 const fotosSeleccionadas = ref([]);
+const agaStatus = ref({
+  mensaje: '📍 A09 asignada automáticamente mediante el nuevo shapefile WGS84. Puede corregirla manualmente.',
+  tipo: 'success'
+});
 
 // Field Locks de Socket.io
 const fieldLocks = reactive({});
@@ -711,6 +762,22 @@ function obtenerNombreTipo(tipo) {
   return textoEventoIndividual[tipo] || tipo || 'Evento';
 }
 
+function actualizarEstadoAGA() {
+  const coords = parsearCoordenadasNLP(formNovedad.coordenadasTexto);
+  agaStatus.value = evaluarEstadoAGA(coords, formNovedad.aga, formNovedad.agaManual);
+}
+
+function onAgaManualInput() {
+  formNovedad.agaManual = true;
+  formNovedad.aga = String(formNovedad.aga || '').trim().toUpperCase();
+  actualizarEstadoAGA();
+}
+
+function recalcularAGADesdeCoordenadas() {
+  formNovedad.agaManual = false;
+  alCambiarCoordenadas();
+}
+
 function analizarTextoNLP() {
   const dir = formNovedad.direccion;
   if (dir && dir.trim().length > 3) {
@@ -724,8 +791,22 @@ function analizarTextoNLP() {
     } else {
       nlpDetectado.value = false;
     }
-    if (meta.aga && !formNovedad.agaManual) formNovedad.aga = meta.aga;
-    if (meta.hora) formNovedad.hora = meta.hora;
+    if (meta.aga && !formNovedad.agaManual) {
+      formNovedad.aga = meta.aga;
+    }
+    if (meta.hora) {
+      formNovedad.hora = meta.hora;
+    }
+    if (meta.coordenadas && !formNovedad.coordenadasTexto) {
+      formNovedad.coordenadasTexto = meta.coordenadas.texto;
+      formNovedad.lat = meta.coordenadas.lat;
+      formNovedad.lng = meta.coordenadas.lng;
+      if (!formNovedad.agaManual) {
+        const calcAga = obtenerAGAPorCoordenadas(meta.coordenadas.lat, meta.coordenadas.lng);
+        if (calcAga) formNovedad.aga = calcAga;
+      }
+    }
+    actualizarEstadoAGA();
   } else {
     nlpDetectado.value = false;
   }
@@ -742,31 +823,37 @@ function alCambiarCoordenadas() {
   if (coords) {
     formNovedad.lat = coords.lat;
     formNovedad.lng = coords.lng;
+    formNovedad.coordenadasTexto = coords.texto;
     if (!formNovedad.agaManual) {
       const calculada = obtenerAGAPorCoordenadas(coords.lat, coords.lng);
-      if (calculada) formNovedad.aga = calculada;
+      formNovedad.aga = calculada || 'N/D';
+    }
+  } else {
+    formNovedad.lat = null;
+    formNovedad.lng = null;
+    if (!formNovedad.agaManual) {
+      formNovedad.aga = 'N/D';
     }
   }
+  actualizarEstadoAGA();
   generarAlertaInmediata();
 }
 
 function generarAlertaInmediata() {
-  const dir = formNovedad.direccion.trim();
-  if (!dir) {
-    previewAlertaInmediata.value = '';
-    return;
-  }
-  const coord = formNovedad.coordenadasTexto.trim() || 'Coordenadas pendientes';
-  const tipoStr = textoEventoIndividual[formNovedad.tipo] || 'acumulacion de agua';
-  const inst = formNovedad.instituciones.trim() || '@Segura_EP';
-  const num = (reporte.novedades?.length || 0) + 1;
+  const dir = formNovedad.direccion.trim() || 'PROSPERINA 6TO CALLEJON Y AV 41 DIAGONAL A LAS ROSAS';
+  const coord = formNovedad.coordenadasTexto.trim() || '-2.138694, -79.936833';
+  const tipo = formNovedad.tipo;
+  const inst = formNovedad.instituciones.trim() || '@emapagye @interagua';
+  const eventoStr = textoEventoIndividual[tipo] || 'acumulación de agua';
 
-  previewAlertaInmediata.value = `[ALERTA #${num}] Desde el C5 de Segura EP se visualiza ${tipoStr} en ${dir}, LluviasEc, se notifico a ${inst}.
+  const numeroIcono = emojisNumeros[reporte.novedades?.length || 0] || `${(reporte.novedades?.length || 0) + 1}️⃣`;
 
-Coordenadas:
+  previewAlertaInmediata.value = `${numeroIcono}Desde el C5 de #SeguraEP se visualiza ${eventoStr} en ${dir}, #LluviasEc, se notificó a ${inst}.
+
+Coordenadas
 ${coord}
 
-Sala Situacional de Segura EP | 098-896-1307 | salasituacional@seguraep.gob.ec`;
+*Sala Situacional de Segura EP* | 098-896-1307 | salasituacional@seguraep.gob.ec`;
 }
 
 function copiarAlertaIndividual() {
@@ -980,11 +1067,12 @@ async function registrarYConsolidar() {
     formNovedad.tipo = 'AGUA';
     formNovedad.instituciones = '@emapagye @interagua';
     formNovedad.hora = obtenerHoraActual();
-    formNovedad.recurso_asignado = 'INS-ALC';
-    formNovedad.estado_operativo = 'PENDIENTE';
+    formNovedad.recurso_asignado = 'INS-ALC 🚙';
+    formNovedad.estado_operativo = '⛔PENDIENTE';
     nlpDetectado.value = false;
     nlpLabel.value = '';
     fotosSeleccionadas.value = [];
+    actualizarEstadoAGA();
     generarAlertaInmediata();
     toast.success('Novedad registrada y consolidada en el reporte.');
   } catch (err) {
@@ -1000,45 +1088,120 @@ function eliminarNovedad(index) {
   }
 }
 
+function formatearRecursoConEmoji(rec) {
+  if (!rec) return 'INS-ALC 🚙';
+  if (/[🚙🚛🚜🦺🌳🚓👷]/.test(rec)) return rec;
+  const mapa = {
+    'INS-ALC': 'INS-ALC 🚙',
+    'HK': 'HK 🚛',
+    'CAMIONETA-OP-CN': 'CAMIONETA-OP-CN 🚙',
+    'MAQUINARIA OBRAS PUBLICAS': 'MAQUINARIA OBRAS PÚBLICAS 🚜',
+    'MAQUINARIA OBRAS PÚBLICAS': 'MAQUINARIA OBRAS PÚBLICAS 🚜',
+    'EQUIPO GESTION DE RIESGOS': 'EQUIPO GESTIÓN DE RIESGOS 🦺',
+    'EQUIPO GESTIÓN DE RIESGOS': 'EQUIPO GESTIÓN DE RIESGOS 🦺',
+    'CUADRILLA PARQUES': 'CUADRILLA PARQUES 🌳',
+    'MAQUINARIA PARQUES': 'MAQUINARIA PARQUES 🚜',
+    'PATRULLAS ATM': 'PATRULLAS ATM 🚓',
+    'ASEO CANTONAL - URVASEO': 'ASEO CANTONAL - URVASEO 🚛',
+    'INSPECTOR URVASEO': 'INSPECTOR URVASEO 🚙',
+    'CUADRILLA URVASEO': 'CUADRILLA URVASEO 👷'
+  };
+  return mapa[rec] || `${rec} 🚙`;
+}
+
+function formatearEstadoConEmoji(est) {
+  if (!est) return '⛔PENDIENTE';
+  if (/[⛔🔄✅]/.test(est)) return est;
+  const upper = String(est).toUpperCase();
+  if (upper.includes('ATENDIDO')) return '✅ATENDIDO';
+  if (upper.includes('ATENCION') || upper.includes('ATENCIÓN')) return '🔄EN ATENCIÓN';
+  return '⛔PENDIENTE';
+}
+
 // Reporte Consolidado Texto
 const reporteConsolidadoTexto = computed(() => {
   const cabecera = reporte.cabecera || `REPORTE DE NOVEDADES POR LLUVIAS INICIAL: ${reporte.fecha_reporte || ''} ${reporte.hora_inicio || ''}`;
-  const frase = reporte.periodo || 'Durante el turno se han registrado las siguientes novedades:';
-  const fechaInocar = reporte.inocar_fecha || 'el pronostico oficial';
-  const pleamar = reporte.inocar_pleamar || 'Pleamar pronosticada';
-  const bajamar = reporte.inocar_bajamar || 'Bajamar pronosticada';
+  const frase = reporte.periodo || 'Durante la noche del 7 de mayo se han registrado las siguientes novedades en el cantón Guayaquil por efecto de las lluvias:';
+  const fechaInocar = reporte.inocar_fecha || '7 de mayo';
+  const pleamar = reporte.inocar_pleamar || 'a las 22h42 con 4.13m';
+  const bajamar = reporte.inocar_bajamar || 'a las 05h27 del 08/05/2026 con 0.79m';
 
-  let cuerpo = '';
-  if (reporte.novedades && reporte.novedades.length) {
-    reporte.novedades.forEach((item, i) => {
-      const tipoKey = item.tipo_evento || item.tipo || 'AGUA';
-      const tipoStr = textoEventoIndividual[tipoKey] || tipoKey || 'NOVEDAD';
-      const dirStr = item.direccion || item.dir || 'Sin direccion';
-      const horaStr = item.hora_evento || item.hora || '00:00';
-      const recursoStr = item.recurso_asignado || item.recurso || 'N/A';
-      const estadoStr = item.estado_operativo || item.estado || 'PENDIENTE';
+  const categorias = {
+    AGUA: { titulo: "𝗧𝗿𝗮𝗯𝗮𝗷𝗼𝘀 𝗲𝗻 𝘃𝗶́𝗮𝘀 𝗽𝗼𝗿 𝗮𝗰𝘂𝗺𝘂𝗹𝗮𝗰𝗶𝗼́𝗻 𝗱𝗲 𝗮𝗴𝘂𝗮:🚰", items: [] },
+    ARBOL: { titulo: "𝗖𝗮𝗶́𝗱𝗮 𝗱𝗲 𝗮́𝗿𝗯𝗼𝗹𝗲𝘀 / 𝗿𝗮𝗺𝗮𝘀:🌳", items: [] },
+    DESLIZAMIENTO: { titulo: "𝗗𝗲𝘀𝗹𝗶𝘇𝗮𝗺𝗶𝗲𝗻𝘁𝗼𝘀 / 𝗦𝗼𝗰𝗮𝘃𝗼𝗻𝗲𝘀:⛰️", items: [] },
+    POSTE: { titulo: "𝗖𝗮𝗶́𝗱𝗮 𝗱𝗲 𝗽𝗼𝘀𝘁𝗲𝘀 / 𝗰𝗮𝗯𝗹𝗲𝗮𝗱𝗼:⚡", items: [] },
+    SINIESTRO: { titulo: "𝗦𝗶𝗻𝗶𝗲𝘀𝘁𝗿𝗼𝘀 𝗱𝗲 𝘁𝗿𝗮́𝗻𝘀𝗶𝘁𝗼:🚗", items: [] },
+    INUNDACION: { titulo: "𝗜𝗻𝘂𝗻𝗱𝗮𝗰𝗶𝗼𝗻𝗲𝘀:🌊", items: [] },
+    VENDAVAL: { titulo: "𝗔𝗳𝗲𝗰𝘁𝗮𝗰𝗶𝗼𝗻𝗲𝘀 𝗽𝗼𝗿 𝘃𝗲𝗻𝗱𝗮𝘃𝗮𝗹𝗲𝘀:💨", items: [] },
+    AFECTACION: { titulo: "𝗔𝗳𝗲𝗰𝘁𝗮𝗰𝗶𝗼́𝗻 𝗲𝘀𝘁𝗿𝘂𝗰𝘁𝘂𝗿𝗮𝗹:🏚️", items: [] }
+  };
 
-      cuerpo += `[${i + 1}] ${String(tipoStr).toUpperCase()}: ${dirStr}\n`;
-      cuerpo += `AGA: ${item.aga || 'N/D'} | HORA: ${horaStr} | RECURSO: ${recursoStr}\n`;
-      cuerpo += `ESTADO: ${estadoStr}\n\n`;
-    });
+  const lista = reporte.novedades || [];
+  lista.forEach(item => {
+    const t = item.tipo_evento || item.tipo || 'AGUA';
+    if (categorias[t]) {
+      categorias[t].items.push(item);
+    }
+  });
+
+  let cuerpoNovedades = "";
+  for (const [clave, cat] of Object.entries(categorias)) {
+    if (cat.items.length > 0) {
+      cuerpoNovedades += `${cat.titulo}\n\n`;
+      cat.items.forEach((item, i) => {
+        const num = emojisNumeros[i] || `${i + 1}️⃣`;
+        const dir = item.direccion || item.dir || '';
+        const rec = formatearRecursoConEmoji(item.recurso_asignado || item.recurso);
+        const est = formatearEstadoConEmoji(item.estado_operativo || item.estado);
+        cuerpoNovedades += `${num}${dir} (${rec}-(${est}))\n`;
+      });
+      cuerpoNovedades += "\n";
+    }
+  }
+
+  // Reglas de lenguaje natural para eliminar lo reportado
+  const tiposOcurridos = new Set(lista.map(n => n.tipo_evento || n.tipo));
+  const noOcurridos = [];
+
+  if (!tiposOcurridos.has("POSTE")) noOcurridos.push("caída de postes");
+  if (!tiposOcurridos.has("ARBOL")) noOcurridos.push("árboles");
+  if (!tiposOcurridos.has("INUNDACION")) noOcurridos.push("inundaciones");
+  if (!tiposOcurridos.has("DESLIZAMIENTO")) { 
+    noOcurridos.push("socavones"); 
+    noOcurridos.push("deslizamientos"); 
+  }
+  if (!tiposOcurridos.has("VENDAVAL")) noOcurridos.push("vendavales");
+  if (!tiposOcurridos.has("SINIESTRO")) noOcurridos.push("siniestros de tránsito");
+  if (!tiposOcurridos.has("AFECTACION")) noOcurridos.push("afectaciones estructurales");
+
+  let textoNota = "";
+  if (noOcurridos.length > 0) {
+    if (noOcurridos.length === 1) {
+      textoNota = `No se han reportado , ${noOcurridos[0]}.`;
+    } else {
+      const ultimo = noOcurridos.pop();
+      textoNota = `No se han reportado , ${noOcurridos.join(", ")} ni ${ultimo}.`;
+    }
   } else {
-    cuerpo = 'NO SE HAN REGISTRADO NOVEDADES DURANTE ESTE PERIODO.\n\n';
+    textoNota = "Todas las tipologías de eventos han presentado novedades durante el monitoreo.";
   }
 
   return `${cabecera}
 
 ${frase}
 
-CONVENCIONES:
-- HK: Vehiculo Hydrocleaner
-- INS-ALC: Inspector de Interagua
-- CAMIONETA-OP-CN: Camioneta de contratista
+✔️ ʜᴋ = ᴠᴇʜɪ́ᴄᴜʟᴏ ʜʏᴅʀᴏᴄʟᴇᴀɴᴇʀ🚛
+✔️ ɪɴs-ᴀʟᴄ = ɪɴsᴘᴇᴄᴛᴏʀ ᴅᴇ ɪɴᴛᴇʀᴀɢᴜᴀ🚙
+✔️ ᴄᴀᴍɪᴏɴᴇᴛᴀ-ᴏᴘ-ᴄɴ = ᴄᴀᴍɪᴏɴᴇᴛᴀ ᴅᴇ ᴄᴏɴᴛʀᴀᴛɪsᴛᴀ🚙
 
-${cuerpo}Pronostico INOCAR para ${fechaInocar}:
-${pleamar} Pleamar (marea alta) y ${bajamar} Bajamar (marea baja).
+${cuerpoNovedades}Nota:
 
-Sala Situacional de Segura EP | 098-896-1307 | salasituacional@seguraep.gob.ec`;
+${textoNota}
+
+Para hoy ${fechaInocar} el Instituto Oceanográfico de la Armada (INOCAR) pronostica ${pleamar} Pleamar (marea alta) y ${bajamar} Bajamar (marea baja).
+
+*Sala Situacional de Segura EP* | 098-896-1307 | salasituacional@seguraep.gob.ec`;
 });
 
 function copiarConsolidado() {
@@ -1060,6 +1223,35 @@ async function generarWord() {
     descargandoWord.value = false;
   }
 }
+
+const resumenExportacionSIG = computed(() => {
+  const fecha = shpFecha.value || reporte.fecha_reporte || hoy;
+  const totalFecha = (reporte.novedades || []).filter(item => (item.fecha_evento || item.fecha) === fecha).length;
+  const georreferenciados = obtenerEventosSIGPorFecha(reporte.novedades || [], fecha).length;
+  return `${georreferenciados} de ${totalFecha} evento(s) de la fecha seleccionada tienen coordenadas válidas. Sistema de referencia: WGS 84 (EPSG:4326).`;
+});
+
+async function descargarShapefile() {
+  const fecha = shpFecha.value || reporte.fecha_reporte || hoy;
+  exportandoShapefile.value = true;
+  try {
+    await exportarShapefileEventos(reporte.novedades || [], fecha);
+    toast.success('Shapefile (.zip) generado y descargado correctamente.');
+  } catch (err) {
+    toast.error('Error al exportar Shapefile: ' + err.message);
+  } finally {
+    exportandoShapefile.value = false;
+  }
+}
+
+watch(
+  () => reporte.fecha_reporte,
+  (nuevaFecha) => {
+    if (nuevaFecha && (!shpFecha.value || shpFecha.value === hoy)) {
+      shpFecha.value = nuevaFecha;
+    }
+  }
+);
 
 async function sincronizarSharePoint() {
   if (!reporte._id || reporte._id === 'nuevo') {
@@ -1184,6 +1376,10 @@ watch(() => reporte.fecha_reporte, (nuevaFecha) => {
     reporte.cabecera = generarCabeceraDinamica(nuevaFecha, reporte.hora_inicio);
     formNovedad.fecha = nuevaFecha;
   }
+});
+
+watch(() => reporte.novedades?.length, () => {
+  generarAlertaInmediata();
 });
 
 async function inicializarVista() {
@@ -1460,6 +1656,50 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   font-size: 0.8rem;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aga-spatial-status {
+  margin-top: 5px;
+  padding: 6px 9px;
+  border-radius: 5px;
+  background: #edf7f3;
+  border: 1px solid #b8e0d1;
+  color: #176b4d;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.aga-spatial-status.warning {
+  background: #fff5e6;
+  border-color: #f1d3a1;
+  color: #8a5b14;
+}
+
+.aga-spatial-status.error {
+  background: #fff0ef;
+  border-color: #efc2bf;
+  color: #9b3833;
+}
+
+.btn-geo {
+  width: 100%;
+  margin-top: 5px;
+  padding: 6px 9px;
+  background: #e8f4fd;
+  border: 1px solid #9dcced;
+  color: #0984e3;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-geo:hover {
+  background: #d0e8fa;
 }
 
 .photo-field-group {
@@ -1847,5 +2087,79 @@ onBeforeUnmount(() => {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+.sig-export {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(220px, auto) 1fr;
+  gap: 12px;
+  align-items: end;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid #b8d8f0;
+  border-radius: 8px;
+  background: #f3f9fd;
+}
+
+.sig-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sig-field label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #0a3d62;
+  text-transform: uppercase;
+}
+
+.sig-field input[type="date"] {
+  padding: 7px 10px;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  font-size: 0.86rem;
+  background: #ffffff;
+}
+
+.sig-export-note {
+  align-self: center;
+  color: #4b6584;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.btn-sig {
+  background: #0b6b45;
+  color: #ffffff;
+  white-space: nowrap;
+  cursor: pointer;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-sig:hover:not(:disabled) {
+  background: #084e32;
+}
+
+.btn-sig:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .sig-export {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

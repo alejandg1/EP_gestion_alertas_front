@@ -17,7 +17,7 @@
           @click="remove(t.id)"
           aria-label="Cerrar notificación"
         >
-          &times;
+          <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
     </TransitionGroup>

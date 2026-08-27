@@ -37,7 +37,9 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-block" :disabled="loading">
-          {{ loading ? 'Iniciando sesion...' : 'Ingresar a Sala Situacional' }}
+          <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+          <i v-else class="fa-solid fa-right-to-bracket"></i>
+          {{ loading ? 'Iniciando sesión...' : 'Ingresar a Sala Situacional' }}
         </button>
       </form>
     </div>

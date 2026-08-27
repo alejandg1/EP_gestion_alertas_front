@@ -13,20 +13,20 @@
       <div class="user-controls">
         <template v-if="usuario">
           <span class="user-badge" :title="usuario.correo">
-            {{ usuario.nombre || usuario.correo }}
+            <i class="fa-solid fa-user-circle"></i> {{ usuario.nombre || usuario.correo }}
           </span>
 
           <button type="button" class="btn btn-sm btn-outline-white" @click="$emit('open-register')">
-            Registrar Operador
+            <i class="fa-solid fa-user-plus"></i> Registrar Operador
           </button>
 
           <button type="button" class="btn btn-sm btn-danger" @click="cerrarSesion">
-            Cerrar Sesion
+            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
           </button>
         </template>
         <template v-else>
           <router-link to="/login" class="btn btn-sm btn-primary">
-            Iniciar Sesion
+            <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión
           </router-link>
         </template>
       </div>

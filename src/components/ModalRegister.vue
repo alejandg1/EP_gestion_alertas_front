@@ -3,7 +3,9 @@
     <div class="modal-card">
       <div class="modal-header">
         <h3>Registrar Nuevo Operador</h3>
-        <button type="button" class="btn-close" @click="cerrar">X</button>
+        <button type="button" class="btn-close" @click="cerrar" title="Cerrar modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
       <form @submit.prevent="ejecutarRegistro" class="modal-body">
@@ -50,9 +52,11 @@
 
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="cerrar">
-            Cancelar
+            <i class="fa-solid fa-ban"></i> Cancelar
           </button>
           <button type="submit" class="btn btn-primary" :disabled="loading">
+            <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
+            <i v-else class="fa-solid fa-user-check"></i>
             {{ loading ? 'Registrando...' : 'Registrar Operador' }}
           </button>
         </div>
