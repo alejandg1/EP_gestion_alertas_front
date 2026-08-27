@@ -3,8 +3,8 @@
     <div class="login-card">
       <div class="login-brand">
         <img src="/icons/icon_blanco.png" alt="Segura EP" class="login-logo" />
-        <h2>Sala Situacional</h2>
-        <p>Sistema de gestion de alertas</p>
+        <h2>Sistema Integral de Reporte de Emergencias</h2>
+        <p>Sala Situacional - Segura EP</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">

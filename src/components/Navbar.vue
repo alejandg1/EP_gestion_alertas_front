@@ -5,7 +5,7 @@
         <router-link to="/" class="brand-title">
           <img src="/icons/icon_blanco.png" alt="Segura EP" class="header-logo" />
           <div class="brand-text">
-            <h2>Sala Situacional - Sistema de gestión de alertas</h2>
+            <h2>Sistema Integral de Reporte de Emergencias</h2>
           </div>
         </router-link>
       </div>
