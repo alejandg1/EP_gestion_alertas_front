@@ -2,22 +2,22 @@
   <div class="map-container-root" :class="{ 'is-expanded': isExpanded }">
     <div class="map-toolbar">
       <div class="map-controls-group">
-        <label class="checkbox-label">
+        <label class="checkbox-label" title="Activar/desactivar capa de mapa de calor KDE">
           <input type="checkbox" v-model="mostrarKDE" @change="actualizarKDE" />
-          <span>Mostrar densidad de calor</span>
+          <span>Mapa de calor</span>
         </label>
-        <label class="checkbox-label">
+        <label class="checkbox-label" title="Activar/desactivar polígonos de zonas AGA WGS84">
           <input type="checkbox" v-model="mostrarAGA" @change="actualizarAGA" />
-          <span>Mostrar zonas AGA</span>
+          <span>Zonas AGA</span>
         </label>
       </div>
       <div class="map-actions-group">
-        <button type="button" class="btn btn-secondary btn-m btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos">
-          <i class="fa-solid fa-location-crosshairs"></i> Centrar en eventos
+        <button type="button" class="btn btn-secondary btn-sm btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos registrados">
+          <i class="fa-solid fa-location-crosshairs"></i> Centrar
         </button>
-        <button type="button" class="btn btn-primary btn-m btn-expandir" @click="toggleExpandir" :title="isExpanded ? 'Contraer mapa' : 'Expandir mapa a pantalla completa'">
+        <button type="button" class="btn btn-primary btn-sm btn-expandir" @click="toggleExpandir" :title="isExpanded ? 'Contraer mapa' : 'Expandir mapa a pantalla completa'">
           <i :class="isExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'"></i>
-          <span>{{ isExpanded ? 'Contraer Mapa' : 'Expandir Mapa' }}</span>
+          <span>{{ isExpanded ? 'Contraer' : 'Expandir' }}</span>
         </button>
       </div>
     </div>
@@ -347,54 +347,61 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px 14px;
   flex-wrap: wrap;
-  padding: 10px 14px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
 }
 
 .map-controls-group {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
 .map-actions-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-left: auto;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .checkbox-label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  font-size: 0.82rem;
+  gap: 6px;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-muted);
   cursor: pointer;
-  margin: 0;
+  margin: 0 !important;
   user-select: none;
   text-transform: none;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   cursor: pointer;
-  accent-color: #0984e3;
+  accent-color: var(--accent-blue);
   margin: 0;
+  padding: 0;
 }
 
 .btn-ajustar, .btn-expandir {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
 }
 
 @media (max-width: 640px) {
@@ -407,7 +414,6 @@ onBeforeUnmount(() => {
     justify-content: space-between;
   }
   .map-actions-group {
-    margin-left: 0;
     width: 100%;
     justify-content: space-between;
   }
@@ -419,21 +425,21 @@ onBeforeUnmount(() => {
 .leaflet-map-box {
   width: 100%;
   height: 480px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
   z-index: 1;
 }
 
 .map-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 8px 14px;
   padding: 8px 12px;
-  background: #ffffff;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  font-size: 0.75rem;
-  color: #475569;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 0.74rem;
+  color: var(--text-muted);
 }
 
 .legend-item {
@@ -443,8 +449,8 @@ onBeforeUnmount(() => {
 }
 
 .legend-circle {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   display: inline-block;
   border: 1px solid rgba(0,0,0,0.15);
@@ -479,19 +485,19 @@ onBeforeUnmount(() => {
 }
 
 :deep(.aga-tooltip) {
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid #0a3d62;
-  color: #0a3d62;
+  background-color: rgba(15, 39, 68, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
   font-weight: 700;
   font-size: 10px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 :deep(.map-popup-card) {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.82rem;
-  color: #1e293b;
+  color: var(--text-main);
   line-height: 1.4;
 }
 
@@ -504,14 +510,14 @@ onBeforeUnmount(() => {
 :deep(.popup-dir) {
   font-weight: 600;
   margin: 4px 0;
-  color: #334155;
+  color: var(--text-main);
 }
 
 :deep(.popup-meta) {
   display: flex;
   gap: 12px;
   font-size: 0.76rem;
-  color: #64748b;
+  color: var(--text-muted);
   margin-top: 2px;
 }
 
@@ -525,7 +531,7 @@ onBeforeUnmount(() => {
   width: 60px;
   height: 60px;
   object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
 </style>

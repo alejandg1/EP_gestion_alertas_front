@@ -1,135 +1,212 @@
 // HomeView.vue
 
 <template>
-  <div class="home-wrapper" :style="pageBackgroundStyle">
+  <div class="home-wrapper">
     <div class="home-container">
       <Navbar @open-register="showModalRegister = true" />
 
-      <div class="dashboard-header">
-        <div class="dashboard-title">
-          <h2>Reportes de Sala Situacional</h2>
-        </div>
-
-        <div class="dashboard-actions">
-          <button
-            type="button"
-            class="btn btn-primary"
-            @click="crearNuevoReporte"
-            :disabled="creandoReporte"
-          >
-            <i v-if="creandoReporte" class="fa-solid fa-spinner fa-spin"></i>
-            <i v-else class="fa-solid fa-file-circle-plus"></i>
-            {{ creandoReporte ? 'Creando Reporte...' : 'Crear Nuevo Reporte' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Filtro y Estadisticas Rapidas -->
-      <div class="filter-bar">
+      <div class="toolbar-panel">
         <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
           <input
             type="text"
             v-model="busqueda"
-            placeholder="Buscar por RDS, titulo o colaborador..."
+            placeholder="Buscar por código RDS, título o colaborador..."
             @input="onBusquedaInput"
           />
-          <button v-if="busqueda" class="btn-clear" @click="limpiarBusqueda" title="Limpiar busqueda">
+          <button v-if="busqueda" class="btn-clear" @click="limpiarBusqueda" title="Limpiar búsqueda">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <div class="stats-group">
-          <span class="stat-pill">
-            <i class="fa-solid fa-folder-open"></i> Total: <b>{{ totalReportes }}</b>
-          </span>
-          <span class="stat-pill">
-            <i class="fa-solid fa-triangle-exclamation"></i> Novedades: <b>{{ totalNovedadesCount }}</b>
-          </span>
-          <button class="btn btn-sm btn-primary" @click="cargarReportes" :disabled="loading" title="Recargar lista">
+        <div class="toolbar-metrics">
+          <div class="metric-chip">
+            <i class="fa-solid fa-clipboard-list metric-icon blue"></i>
+            <span class="metric-text">Reportes:</span>
+            <strong class="metric-num tabular-nums">{{ totalReportes }}</strong>
+          </div>
+          <div class="metric-chip">
+            <i class="fa-solid fa-triangle-exclamation metric-icon teal"></i>
+            <span class="metric-text">Novedades:</span>
+            <strong class="metric-num tabular-nums">{{ totalNovedadesCount }}</strong>
+          </div>
+        </div>
+
+        <div class="toolbar-controls">
+          <!-- Selector de Vista (Cuadrícula / Tabla) -->
+          <div class="view-switcher" role="group" aria-label="Modo de visualización">
+            <button
+              type="button"
+              class="view-btn"
+              :class="{ active: vistaModo === 'grid' }"
+              @click="vistaModo = 'grid'"
+              title="Vista de Fichas"
+            >
+              <i class="fa-solid fa-table-cells-large"></i>
+              <span>Fichas</span>
+            </button>
+            <button
+              type="button"
+              class="view-btn"
+              :class="{ active: vistaModo === 'table' }"
+              @click="vistaModo = 'table'"
+              title="Vista de Tabla Operativa"
+            >
+              <i class="fa-solid fa-table-list"></i>
+              <span>Tabla</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-outline btn-refresh"
+            @click="cargarReportes"
+            :disabled="loading"
+            title="Recargar lista"
+          >
             <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': loading }"></i>
-            {{ loading ? 'Cargando...' : 'Actualizar' }}
+          </button>
+          <button
+            type="button"
+            class="btn-primary btn-sm"
+            @click="crearNuevoReporte"
+            :disabled="creandoReporte"
+          >
+            <i v-if="creandoReporte" class="fa-solid fa-spinner fa-spin"></i>
+            <i v-else class="fa-solid fa-plus"></i>
+            {{ creandoReporte ? 'Creando Reporte...' : 'Nuevo Reporte' }}
           </button>
         </div>
       </div>
 
-      <!-- Estado de Carga / Vacio -->
-      <div v-if="loading" class="empty-state">
+      <!-- ESTADO DE CARGA -->
+      <div v-if="loading" class="state-card">
         <div class="spinner"></div>
         <p>Cargando reportes de la Sala Situacional...</p>
       </div>
 
-      <div v-else-if="reportes.length === 0" class="empty-state">
+      <!-- ESTADO VACÍO -->
+      <div v-else-if="reportes.length === 0" class="state-card">
+        <div class="empty-icon"><i class="fa-regular fa-folder-open"></i></div>
         <h3>No se encontraron reportes</h3>
         <p v-if="busqueda">No hay resultados que coincidan con "{{ busqueda }}"</p>
-        <p v-else>No hay reportes registrados aún en la plataforma.</p>
+        <p v-else>No existen reportes RDS registrados en el sistema.</p>
       </div>
 
-      <!-- Grid de Reportes -->
-      <div v-else class="reports-grid">
+      <!-- VISTA 1: CUADRÍCULA DE FICHAS EJECUTIVAS -->
+      <div v-else-if="vistaModo === 'grid'" class="reports-grid">
         <div
           v-for="rep in reportes"
           :key="rep._id"
           class="report-card"
           @click="abrirReporte(rep._id)"
         >
-          <div class="card-top">
-            <span class="rds-badge">{{ rep.numero_rds || 'RDS SIN CODIGO' }}</span>
-            <span class="date-badge">{{ formatearFecha(rep.fecha_reporte) }}</span>
+          <div class="card-head">
+            <span class="rds-code">{{ rep.numero_rds || 'RDS SIN CÓDIGO' }}</span>
+            <span class="date-tag"><i class="fa-regular fa-calendar"></i> {{ formatearFecha(rep.fecha_reporte) }}</span>
           </div>
 
-          <h3 class="card-title">{{ rep.titulo }}</h3>
+          <h3 class="card-title" :title="rep.titulo">{{ rep.titulo }}</h3>
 
-          <div class="card-details">
-            <div class="detail-row">
-              <span class="label">Horario de corte:</span>
-              <span class="value">{{ rep.hora_inicio || '00:00' }} - {{ rep.hora_fin || '23:59' }}</span>
+          <div class="card-meta-list">
+            <div class="meta-item">
+              <span class="meta-icon"><i class="fa-regular fa-clock"></i></span>
+              <span class="meta-label">Corte:</span>
+              <strong class="meta-val tabular-nums">{{ rep.hora_inicio || '00:00' }} - {{ rep.hora_fin || '23:59' }}</strong>
             </div>
 
-            <div class="detail-row">
-              <span class="label">Elaborado por:</span>
-              <span class="value" :title="obtenerTextoColaboradores(rep)">
-                {{ obtenerTextoColaboradores(rep) }}
-              </span>
+            <div class="meta-item">
+              <span class="meta-icon"><i class="fa-solid fa-user-pen"></i></span>
+              <span class="meta-label">Elaborado:</span>
+              <span class="meta-val ellipsis" :title="obtenerTextoColaboradores(rep)">{{ obtenerTextoColaboradores(rep) }}</span>
             </div>
 
-            <div class="detail-row">
-              <span class="label">Revisado por:</span>
-              <span class="value">{{ rep.revisado_por || 'Jefatura de Sala' }}</span>
+            <div class="meta-item">
+              <span class="meta-icon"><i class="fa-solid fa-user-check"></i></span>
+              <span class="meta-label">Revisado:</span>
+              <span class="meta-val ellipsis" :title="rep.revisado_por || 'Jefatura de Sala'">{{ rep.revisado_por || 'Jefatura de Sala' }}</span>
             </div>
           </div>
 
           <div class="card-footer">
-            <span class="events-badge">
-              <i class="fa-solid fa-list-check"></i> {{ (rep.novedades || []).length }} Novedades
+            <span class="badge-novedades">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <b>{{ (rep.novedades || []).length }}</b> novedades
             </span>
-            <div class="card-footer-actions">
+
+            <div class="card-actions" @click.stop>
               <button
                 type="button"
-                class="btn btn-sm btn-danger btn-del-report"
-                @click.stop="eliminarReporte(rep)"
+                class="btn-icon-del"
+                @click="eliminarReporte(rep)"
                 title="Eliminar este reporte"
               >
                 <i class="fa-solid fa-trash-can"></i>
-              </button>
-              <button type="button" class="btn btn-sm btn-primary" @click.stop="abrirReporte(rep._id)">
-                Abrir Reporte <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Barra de Paginación y Límites -->
+      <!-- VISTA 2: TABLA OPERATIVA DE ALTA DENSIDAD -->
+      <div v-else class="table-container">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Código RDS</th>
+              <th>Fecha</th>
+              <th>Horario de Corte</th>
+              <th>Novedades</th>
+              <th>Elaborado por</th>
+              <th>Revisado por</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="rep in reportes"
+              :key="rep._id"
+              class="table-row-clickable"
+              @click="abrirReporte(rep._id)"
+            >
+              <td>
+                <span class="table-rds">{{ rep.numero_rds || 'RDS SIN CÓDIGO' }}</span>
+              </td>
+              <td class="tabular-nums">{{ formatearFecha(rep.fecha_reporte) }}</td>
+              <td class="tabular-nums">{{ rep.hora_inicio || '00:00' }} - {{ rep.hora_fin || '23:59' }}</td>
+              <td>
+                <span class="badge-novedades">
+                  {{ (rep.novedades || []).length }}
+                </span>
+              </td>
+              <td class="ellipsis-cell" :title="obtenerTextoColaboradores(rep)">{{ obtenerTextoColaboradores(rep) }}</td>
+              <td class="ellipsis-cell" :title="rep.revisado_por || 'Jefatura de Sala'">{{ rep.revisado_por || 'Jefatura de Sala' }}</td>
+              <td style="text-align: right;" @click.stop>
+                <div class="table-actions">
+                  <button
+                    type="button"
+                    class="btn btn-xs btn-danger"
+                    @click="eliminarReporte(rep)"
+                    title="Eliminar reporte"
+                  >
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- BARRA DE PAGINACIÓN INSTITUCIONAL -->
       <div v-if="totalReportes > 0" class="pagination-bar">
         <div class="pagination-info">
-          <span>
-            Mostrando página <b>{{ paginacion.page || page }}</b> de <b>{{ paginacion.totalPages || 1 }}</b> (Total: <b>{{ totalReportes }}</b> reportes)
-          </span>
+          Mostrando página <b>{{ paginacion.page || page }}</b> de <b>{{ paginacion.totalPages || 1 }}</b> (Total: <b>{{ totalReportes }}</b> reportes)
         </div>
 
         <div class="pagination-controls">
           <div class="limit-selector">
-            <label for="limit-select">Límite:</label>
+            <label for="limit-select">Filas:</label>
             <select id="limit-select" v-model="limit" @change="cambiarLimite">
               <option :value="6">6</option>
               <option :value="12">12</option>
@@ -145,7 +222,7 @@
             @click="irAPagina((paginacion.page || page) - 1)"
             title="Página anterior"
           >
-            <i class="fa-solid fa-chevron-left"></i> Anterior
+            <i class="fa-solid fa-chevron-left"></i>
           </button>
 
           <div class="page-numbers">
@@ -168,7 +245,7 @@
             @click="irAPagina((paginacion.page || page) + 1)"
             title="Página siguiente"
           >
-            Siguiente <i class="fa-solid fa-chevron-right"></i>
+            <i class="fa-solid fa-chevron-right"></i>
           </button>
         </div>
       </div>
@@ -200,6 +277,7 @@ const reportes = ref([]);
 const loading = ref(false);
 const creandoReporte = ref(false);
 const busqueda = ref('');
+const vistaModo = ref('grid'); // 'grid' o 'table'
 const page = ref(1);
 const limit = ref(12);
 const totalReportes = ref(0);
@@ -251,17 +329,6 @@ const paginasVisibles = computed(() => {
 
 const showModalRegister = ref(false);
 
-// Nombre exacto del archivo ubicado en public/icons/
-const bgImageUrl = '/icons/Gemini_Generated_Image_uhi1ycuhi1ycuhi1.jpg';
-
-const pageBackgroundStyle = computed(() => ({
-  backgroundImage: `linear-gradient(rgba(10, 61, 98, 0.45), rgba(15, 23, 42, 0.65)), url("${bgImageUrl}")`,
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'center center',
-  backgroundSize: 'cover',
-  backgroundAttachment: 'fixed'
-}));
-
 async function crearNuevoReporte() {
   creandoReporte.value = true;
   try {
@@ -299,14 +366,14 @@ async function crearNuevoReporte() {
       inocar_fecha: pronosticoHoy.fecha,
       inocar_pleamar: pronosticoHoy.pleamar,
       inocar_bajamar: pronosticoHoy.bajamar,
-      observaciones_generales: 'Monitoreo en tiempo real de lluvias y acumulacion de agua.'
+      observaciones_generales: 'Monitoreo en tiempo real de lluvias y acumulación de agua.'
     };
     const nuevo = await reportesService.create(dataCreacion);
     const idCreado = nuevo?._id || nuevo?.reporte?._id;
     if (idCreado) {
       router.push(`/reportes/${idCreado}`);
     } else {
-      throw new Error('No se recibio el ID del reporte creado');
+      throw new Error('No se recibió el ID del reporte creado');
     }
   } catch (err) {
     toast.error('Error al crear nuevo reporte: ' + (err.response?.data?.error || err.message));
@@ -402,11 +469,7 @@ function formatearFecha(iso) {
 }
 
 function onOperadorRegistrado() {
-  // Notificacion o recarga si es necesario
-}
-
-function onReporteCreado() {
-  cargarReportes();
+  // Notificación o recarga si es necesario
 }
 
 onMounted(() => {
@@ -416,94 +479,166 @@ onMounted(() => {
 
 <style scoped>
 .home-wrapper {
+  flex: 1;
   width: 100%;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
   margin: 0;
   padding: 0;
+  background-color: #f8fafc;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .home-container {
   width: 100%;
-  padding: 20px 32px 60px;
+  margin: 0;
+  padding: 16px 24px 24px;
   box-sizing: border-box;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Cabecera Cristal */
+/* Cabecera Principal */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 20px 28px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.dashboard-title h2 {
-  margin: 0;
-  font-size: 1.4rem;
-  color: #0a3d62;
-  font-weight: 800;
-}
-
-.dashboard-title p {
-  margin: 4px 0 0 0;
-  font-size: 0.88rem;
-  color: #334155;
-  font-weight: 500;
-}
-
-.dashboard-actions {
-  display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Barra de Búsqueda y Estadísticas */
-.filter-bar {
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.breadcrumb-sep {
+  color: var(--border-strong);
+}
+
+.breadcrumb-current {
+  color: var(--accent-blue);
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--primary-navy);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.header-info p {
+  margin: 2px 0 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.btn-create {
+  padding: 8px 16px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+/* Barra de Herramientas, Contadores y Búsqueda */
+.toolbar-panel {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
-  width: 100%;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: var(--bg-surface);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-box {
   position: relative;
-  flex: 1 1 300px;
-  max-width: 500px;
+  flex: 1 1 240px;
+  min-width: 200px;
+  max-width: 440px;
+}
+
+.toolbar-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.metric-chip {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+}
+
+.metric-icon {
+  font-size: 0.82rem;
+}
+
+.metric-icon.blue {
+  color: var(--accent-blue);
+}
+
+.metric-icon.teal {
+  color: #0d9488;
+}
+
+.metric-text {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.metric-num {
+  color: var(--primary-navy);
+  font-weight: 800;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  font-size: 0.85rem;
 }
 
 .search-box input {
   width: 100%;
-  padding: 10px 36px 10px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 8px;
-  font-size: 0.88rem;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #0f172a;
-  font-weight: 600;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 8px 34px 8px 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  background: #ffffff;
+  color: var(--text-main);
+  box-sizing: border-box;
 }
 
 .search-box input:focus {
-  outline: none;
-  border-color: #0284c7;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
 .btn-clear {
@@ -513,119 +648,178 @@ onMounted(() => {
   transform: translateY(-50%);
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--text-faint);
   cursor: pointer;
+}
+
+.toolbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Switcher de Vista */
+.view-switcher {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  background: var(--bg-subtle);
+}
+
+.view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-btn.active {
+  background: #ffffff;
+  color: var(--primary-navy);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   font-weight: 700;
 }
 
-.stats-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.btn-refresh {
+  padding: 6px 10px;
 }
 
-.stat-pill {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: #334155;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+/* Estados */
+.state-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
-.stat-pill b {
-  color: #0a3d62;
-  font-weight: 800;
+.empty-icon {
+  font-size: 2.2rem;
+  color: var(--text-faint);
+  margin-bottom: 10px;
 }
 
-/* Grid Fluido Adaptable a cualquier pantalla */
+/* Grid de Fichas */
 .reports-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 22px;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 18px;
   width: 100%;
 }
 
 .report-card {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  padding: 20px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
 }
 
 .report-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
-  border-color: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-blue);
 }
 
-.card-top {
+.card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.rds-badge {
-  background: #e0f2fe;
+.rds-code {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
   color: #0369a1;
-  font-size: 0.75rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: 4px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
+  max-width: calc(100% - 100px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.date-badge {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #475569;
+.date-tag {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .card-title {
-  margin: 0 0 14px 0;
-  font-size: 1.05rem;
+  margin: 0 0 12px 0;
+  font-size: 0.98rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--primary-navy);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.card-details {
-  background: rgba(241, 245, 249, 0.85);
-  border-radius: 6px;
-  padding: 12px;
-  margin-bottom: 16px;
-  flex: 1;
+.card-meta-list {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  flex: 1;
 }
 
-.detail-row {
+.meta-item {
   display: flex;
-  justify-content: space-between;
-  font-size: 0.82rem;
+  align-items: center;
+  font-size: 0.78rem;
+  gap: 6px;
 }
 
-.detail-row .label {
-  color: #475569;
+.meta-icon {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+  width: 14px;
+}
+
+.meta-label {
+  color: var(--text-muted);
   font-weight: 600;
 }
 
-.detail-row .value {
-  color: #0f172a;
-  font-weight: 700;
-  text-align: right;
-  max-width: 65%;
+.meta-val {
+  color: var(--text-main);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.ellipsis {
+  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -635,89 +829,160 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
-.card-footer-actions {
+.badge-novedades {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  padding: 3px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.card-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.btn-del-report {
-  padding: 6px 10px;
+.btn-icon-del {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-faint);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-del:hover {
   background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fca5a5;
-  transition: all 0.2s ease;
+  color: var(--accent-red);
+  border-color: #fecaca;
 }
 
-.btn-del-report:hover {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.events-badge {
-  font-size: 0.8rem;
+.btn-open-link {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  color: var(--primary-navy);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #0f766e;
-  background: #ccfbf1;
-  padding: 4px 12px;
-  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
 }
 
-.empty-state {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 10px;
-  padding: 40px 20px;
-  text-align: center;
-  color: #475569;
+.btn-open-link:hover {
+  background: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
 }
 
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #cbd5e1;
-  border-top-color: #0a3d62;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 12px;
+/* Vista de Tabla Operativa */
+.table-container {
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
 }
 
-/* Barra de Paginación */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.report-table th {
+  background: var(--bg-subtle);
+  padding: 12px 16px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.table-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.table-row-clickable:hover {
+  background-color: #f8fafc;
+}
+
+.table-rds {
+  font-weight: 700;
+  color: #0369a1;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+}
+
+.ellipsis-cell {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Paginación */
 .pagination-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
-  margin-top: 30px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 14px 24px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  background: var(--bg-surface);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .pagination-info {
-  font-size: 0.88rem;
-  color: #334155;
-  font-weight: 500;
+  font-size: 0.82rem;
+  color: var(--text-muted);
 }
 
 .pagination-info b {
-  color: #0a3d62;
-  font-weight: 800;
+  color: var(--primary-navy);
 }
 
 .pagination-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -725,22 +990,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-muted);
   margin-right: 6px;
 }
 
 .limit-selector select {
-  padding: 5px 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  font-size: 0.84rem;
+  padding: 4px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
   font-weight: 700;
-  color: #0a3d62;
+  color: var(--primary-navy);
   background: #ffffff;
   cursor: pointer;
-  outline: none;
 }
 
 .page-numbers {
@@ -749,66 +1013,33 @@ onMounted(() => {
 }
 
 .page-btn {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 8px;
-  font-size: 0.82rem;
-  font-weight: 700;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 0.78rem;
 }
 
-.filter-select {
-  padding: 10px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: 8px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #0f172a;
-  cursor: pointer;
-  outline: none;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-
-.filter-select:focus {
-  border-color: #0284c7;
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Pantallas Medianas / Celulares */
 @media (max-width: 768px) {
   .home-container {
-    padding: 12px 16px 40px;
+    padding: 12px 14px 40px;
   }
-
   .dashboard-header {
     flex-direction: column;
     align-items: stretch;
   }
-
-  .dashboard-actions {
+  .header-actions .btn {
     width: 100%;
   }
-
-  .dashboard-actions .btn {
-    flex: 1;
-  }
-
-  .filter-bar {
+  .toolbar-panel {
     flex-direction: column;
     align-items: stretch;
   }
-
   .search-box {
     max-width: 100%;
   }
-
+  .toolbar-controls {
+    justify-content: space-between;
+  }
   .reports-grid {
     grid-template-columns: 1fr;
   }

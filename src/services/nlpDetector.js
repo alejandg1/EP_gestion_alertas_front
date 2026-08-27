@@ -28,14 +28,14 @@ export const institucionesPorTipo = {
 };
 
 export const estiloMapaPorTipo = {
-  AGUA: { color: "#0984e3", nombre: "Acumulación de agua", emoji: "🚰" },
-  ARBOL: { color: "#20bf6b", nombre: "Caída de árbol", emoji: "🌳" },
+  AGUA: { color: "#0984e3", nombre: "Agua", emoji: "🚰" },
+  ARBOL: { color: "#20bf6b", nombre: "Árbol", emoji: "🌳" },
   DESLIZAMIENTO: { color: "#8e5b3a", nombre: "Deslizamiento", emoji: "⛰️" },
-  POSTE: { color: "#f1c40f", nombre: "Caída de poste", emoji: "⚡" },
-  SINIESTRO: { color: "#e74c3c", nombre: "Siniestro de tránsito", emoji: "🚗" },
+  POSTE: { color: "#f1c40f", nombre: "Poste", emoji: "⚡" },
+  SINIESTRO: { color: "#e74c3c", nombre: "Siniestro", emoji: "🚗" },
   INUNDACION: { color: "#0069d9", nombre: "Inundación", emoji: "🌊" },
   VENDAVAL: { color: "#7f8c8d", nombre: "Vendaval", emoji: "💨" },
-  AFECTACION: { color: "#8e44ad", nombre: "Afectación estructural", emoji: "🏚️" }
+  AFECTACION: { color: "#8e44ad", nombre: "Afectación", emoji: "🏚️" }
 };
 
 export const nlpKeywords = {

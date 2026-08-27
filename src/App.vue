@@ -2,10 +2,10 @@
   <div class="app-layout">
     <router-view />
     <ToastContainer />
-    <div class="institutional-credit">
+    <footer class="institutional-credit">
       <img src="/icons/escudo.png" alt="Escudo Guayaquil" class="credit-logo" />
-      <span>Elaborado y gestionado por: <strong>Sala Situacional de Segura EP.</strong></span>
-    </div>
+      <span>Elaborado y gestionado por la <strong>Sala Situacional de Segura EP</strong> — Sistema Integral de Reporte de Emergencias</span>
+    </footer>
   </div>
 </template>
 
@@ -16,29 +16,28 @@ import ToastContainer from './components/ToastContainer.vue';
 <style scoped>
 .app-layout {
   min-height: 100vh;
-  position: relative;
-  padding-bottom: 50px;
+  display: flex;
+  flex-direction: column;
 }
 
 .institutional-credit {
-  position: fixed;
-  right: 14px;
-  bottom: 12px;
-  z-index: 1000;
-  max-width: 340px;
-  padding: 6px 12px;
-  border: 1px solid rgba(10, 61, 98, 0.22);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #0a3d62;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  font-size: 0.75rem;
-  font-weight: 700;
+  margin-top: auto;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 8px;
-  text-align: left;
-  backdrop-filter: blur(4px);
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.institutional-credit strong {
+  color: var(--primary-navy);
+  font-weight: 700;
 }
 
 .credit-logo {
@@ -49,9 +48,10 @@ import ToastContainer from './components/ToastContainer.vue';
 
 @media (max-width: 640px) {
   .institutional-credit {
-    right: 8px;
-    bottom: 8px;
-    max-width: calc(100% - 16px);
+    font-size: 0.72rem;
+    padding: 12px 14px;
+    flex-direction: column;
+    gap: 6px;
   }
 }
 </style>

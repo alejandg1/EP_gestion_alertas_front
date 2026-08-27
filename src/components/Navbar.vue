@@ -54,12 +54,13 @@ async function cerrarSesion() {
 
 <style scoped>
 .app-header {
-  background: #0a3d62;
+  background: linear-gradient(135deg, #0f2744 0%, #163b65 100%);
   color: #ffffff;
-  padding: 12px 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(10, 61, 98, 0.15);
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .header-main {
@@ -67,13 +68,13 @@ async function cerrarSesion() {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 16px;
 }
 
 .brand-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -82,13 +83,14 @@ async function cerrarSesion() {
   color: inherit;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .header-logo {
-  height: 44px;
+  height: 42px;
   width: auto;
   object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .brand-text {
@@ -98,9 +100,10 @@ async function cerrarSesion() {
 }
 
 .brand-title h2 {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   margin: 0;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: #ffffff;
 }
 
@@ -112,20 +115,27 @@ async function cerrarSesion() {
 }
 
 .user-badge {
-  background: rgba(255, 255, 255, 0.15);
-  padding: 4px 10px;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
+/* Switch de Confort */
 .btn-outline-white {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #ffffff;
 }
 
 .btn-outline-white:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 </style>

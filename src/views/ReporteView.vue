@@ -4,7 +4,7 @@
     <div class="top-nav-bar">
       <div class="nav-left">
         <router-link to="/reportes" class="btn btn-secondary btn-sm">
-          <i class="fa-solid fa-arrow-left fa-lg" style="color: rgb(236, 234, 234);"></i> Volver a Reportes
+          <i class="fa-solid fa-arrow-left"></i> Volver a Reportes
         </router-link>
         <img src="/icons/icon_blanco.png" alt="Segura EP" class="report-nav-logo" />
         <span class="report-current-tag">
@@ -16,18 +16,14 @@
         <button
           v-if="reporte._id && reporte._id !== 'nuevo'"
           type="button"
-          class="btn btn-danger btn-xs btn-del-report-nav"
+          class="btn btn-danger btn-m btn-del-report-nav"
           @click="eliminarReporteActual"
           title="Eliminar este reporte"
         >
           <i class="fa-solid fa-trash-can"></i> Eliminar Reporte
         </button>
-        <div class="status-pill" :class="isSocketConnected ? 'online' : 'offline'">
-          <span class="dot"></span>
-          <span>{{ isSocketConnected ? 'Conectado' : 'Desconectado' }}</span>
-        </div>
         <span v-if="usuario" class="user-pill">
-          {{usuario.rol}}: {{ usuario.nombre || usuario.correo }}
+          <i class="fa-solid fa-user-shield"></i>{{ usuario.nombre || usuario.correo }}
         </span>
       </div>
     </div>
@@ -78,7 +74,7 @@
             </div>
 
             <div class="form-group">
-              <label for="indiv_instituciones">Instituciones Notificadas (@):</label>
+              <label for="indiv_instituciones">Instituciones Notificadas:</label>
               <input
                 id="indiv_instituciones"
                 type="text"
@@ -88,37 +84,67 @@
             </div>
           </div>
 
-          <div class="grid-3">
+          <div class="grid-fecha-aga-hora">
             <div class="form-group">
-              <label for="indiv_fecha">Fecha del Evento:</label>
-              <input id="indiv_fecha" type="date" v-model="formNovedad.fecha" />
-            </div>
-
-            <div class="form-group">
-              <label for="indiv_aga">Zona AGA (Automática / Editable):</label>
-              <input
-                id="indiv_aga"
-                type="text"
-                v-model="formNovedad.aga"
-                placeholder="A01, A09..."
-                @input="onAgaManualInput"
-              />
-              <div v-if="agaStatus.mensaje" :class="['aga-spatial-status', agaStatus.tipo]">
-                {{ agaStatus.mensaje }}
+              <div class="field-label-row">
+                <label for="indiv_fecha">Fecha:</label>
               </div>
-              <button
-                type="button"
-                class="btn-geo"
-                @click="recalcularAGADesdeCoordenadas"
-                title="Recalcular zona AGA a partir de las coordenadas WGS84"
-              >
-                <i class="fa-solid fa-location-crosshairs"></i> Recalcular desde coordenadas
-              </button>
+              <input id="indiv_fecha" type="date" v-model="formNovedad.fecha" class="form-control-aligned" />
             </div>
 
             <div class="form-group">
-              <label for="indiv_hora">Hora del Evento:</label>
-              <input id="indiv_hora" type="time" v-model="formNovedad.hora" @input="generarAlertaInmediata" />
+              <div class="field-label-row">
+                <label for="indiv_aga">Zona AGA:</label>
+                <div
+                  v-if="agaStatus.mensaje"
+                  class="aga-info-wrapper"
+                  @mouseenter="mostrarPopupAGA = true"
+                  @mouseleave="mostrarPopupAGA = false"
+                >
+                  <button
+                    type="button"
+                    class="btn-info-icon"
+                    :class="agaStatus.tipo"
+                    @click="mostrarPopupAGA = !mostrarPopupAGA"
+                    :title="agaStatus.mensaje"
+                  >
+                    <i class="fa-solid fa-circle-info"></i>
+                  </button>
+                  <transition name="fade-popup">
+                    <div v-if="mostrarPopupAGA" class="aga-floating-popup" :class="agaStatus.tipo">
+                      <span class="popup-text">{{ agaStatus.mensaje }}</span>
+                      <button type="button" class="btn-close-popup" @click.stop="mostrarPopupAGA = false">×</button>
+                    </div>
+                  </transition>
+                </div>
+              </div>
+
+              <div class="input-with-action">
+                <input
+                  id="indiv_aga"
+                  type="text"
+                  v-model="formNovedad.aga"
+                  placeholder="Ej: A09"
+                  @input="onAgaManualInput"
+                  title="Zona AGA calculada mediante cartografía WGS84 o corregida manualmente"
+                  class="form-control-aligned"
+                />
+                <button
+                  type="button"
+                  class="btn-inline-geo"
+                  @click="recalcularAGADesdeCoordenadas"
+                  title="Recalcular AGA desde coordenadas WGS84"
+                >
+                  <i class="fa-solid fa-location-crosshairs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div class="field-label-row">
+                <label for="indiv_hora">Hora:</label>
+              </div>
+              <input id="indiv_hora" type="time" v-model="formNovedad.hora" @input="generarAlertaInmediata" class="form-control-aligned" />
             </div>
           </div>
 
@@ -175,7 +201,7 @@
                 />
                 <label for="indiv_fotos_input" class="upload-trigger-btn" :class="{ 'disabled-upload': fotosSeleccionadas.length >= 2 }">
                   <i class="fa-solid fa-camera"></i>
-                  <span>{{ fotosSeleccionadas.length >= 2 ? 'Límite de 2 fotos alcanzado' : 'Adjuntar fotografías' }}</span>
+                  <span>{{ fotosSeleccionadas.length >= 2 ? 'Límite de 2 fotos alcanzado' : ' Adjuntar fotografías' }}</span>
                 </label>
               </div>
 
@@ -500,7 +526,7 @@
                 @blur="guardarEdicionNovedad(nov)"
               />
 
-              <div class="grid-4" style="margin-top:6px;">
+              <div class="grid-novedad-meta" style="margin-top:6px;">
                 <input
                   type="date"
                   aria-label="Fecha del evento"
@@ -605,7 +631,7 @@
             >
               <i v-if="descargandoWord" class="fa-solid fa-spinner fa-spin"></i>
               <i v-else class="fa-solid fa-file-word"></i>
-              {{ descargandoWord ? 'Generando documento Word...' : 'Descargar Informe Word Oficial (.docx)' }}
+              {{ descargandoWord ? 'Generando documento Word...' : 'Descargar Informe Word' }}
             </button>
           </div>
 
@@ -619,6 +645,9 @@
 
           <!-- Exportación SIG / Shapefile WGS84 -->
           <div class="sig-export">
+            <div class="sig-export-note">
+              {{ resumenExportacionSIG }}
+            </div>
             <div class="sig-field">
               <label for="shp_fecha">Fecha de los eventos:</label>
               <input type="date" id="shp_fecha" v-model="shpFecha" />
@@ -633,9 +662,6 @@
               <i v-else class="fa-solid fa-file-zipper"></i>
               {{ exportandoShapefile ? 'Generando Shapefile...' : 'Descargar Shapefile (.zip)' }}
             </button>
-            <div class="sig-export-note">
-              {{ resumenExportacionSIG }}
-            </div>
           </div>
 
           <MapLeaflet :novedades="reporte.novedades || []" />
@@ -763,6 +789,17 @@ const agaStatus = ref({
   tipo: 'success'
 });
 
+const mostrarPopupAGA = ref(false);
+let agaPopupTimer = null;
+
+function dispararPopupAGA() {
+  mostrarPopupAGA.value = true;
+  if (agaPopupTimer) clearTimeout(agaPopupTimer);
+  agaPopupTimer = setTimeout(() => {
+    mostrarPopupAGA.value = false;
+  }, 4000);
+}
+
 // Field Locks de Socket.io
 const fieldLocks = reactive({});
 
@@ -793,7 +830,12 @@ function onFieldFocus(campoKey) {
   if (isFieldLocked(campoKey)) return;
   const socket = getSocket();
   if (socket && socket.connected && reporte._id) {
-    socket.emit('lock_campo', { reporteId: reporte._id, campoKey });
+    socket.emit('lock_campo', {
+      reporteId: reporte._id,
+      campoKey,
+      usuarioId: usuario.value?.id || usuario.value?._id,
+      usuarioNombre: usuario.value?.nombre || usuario.value?.correo
+    });
   }
 }
 
@@ -814,7 +856,15 @@ function obtenerNombreTipo(tipo) {
 
 function actualizarEstadoAGA() {
   const coords = parsearCoordenadasNLP(formNovedad.coordenadasTexto);
-  agaStatus.value = evaluarEstadoAGA(coords, formNovedad.aga, formNovedad.agaManual);
+  const nuevoEstado = evaluarEstadoAGA(coords, formNovedad.aga, formNovedad.agaManual);
+  if (nuevoEstado?.mensaje !== agaStatus.value?.mensaje) {
+    agaStatus.value = nuevoEstado;
+    if (nuevoEstado?.mensaje) {
+      dispararPopupAGA();
+    }
+  } else {
+    agaStatus.value = nuevoEstado;
+  }
 }
 
 function onAgaManualInput() {
@@ -1722,11 +1772,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .reporte-container {
   width: 100%;
-  height: 100vh;
-  overflow-y: auto;
-  overflow-x: hidden;
   margin: 0;
-  padding: 16px 28px 80px;
+  flex: 1;
+  padding: 16px 24px 24px;
   box-sizing: border-box;
 }
 
@@ -1735,12 +1783,14 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  background: #0a3d62;
+  gap: 14px;
+  background: linear-gradient(135deg, #0f2744 0%, #163b65 100%);
   color: #ffffff;
-  padding: 10px 18px;
-  border-radius: 8px;
-  margin-bottom: 18px;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .nav-left, .nav-right {
@@ -1751,52 +1801,31 @@ onBeforeUnmount(() => {
 }
 
 .report-nav-logo {
-  height: 32px;
+  height: 34px;
   width: auto;
   object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
 }
 
 .report-current-tag {
-  font-size: 0.85rem;
-  background: rgba(255, 255, 255, 0.15);
+  font-size: 0.82rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 4px 10px;
-  border-radius: 6px;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.status-pill.online {
-  background: rgba(16, 185, 129, 0.2);
-  color: #a7f3d0;
-  border: 1px solid rgba(16, 185, 129, 0.4);
-}
-
-.status-pill.offline {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fecaca;
-  border: 1px solid rgba(239, 68, 68, 0.4);
-}
-
-.status-pill .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.02em;
 }
 
 .user-pill {
   font-size: 0.78rem;
-  background: rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .reporte-grid-layout {
@@ -1826,7 +1855,7 @@ onBeforeUnmount(() => {
 }
 
 .card-header {
-  border-bottom: 2px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
   margin-bottom: 14px;
 }
@@ -1835,16 +1864,16 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
   padding-bottom: 10px;
   margin-bottom: 14px;
 }
 
 .card-header h2, .card-header-with-actions h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   font-weight: 700;
-  color: #0a3d62;
+  color: var(--primary-navy);
 }
 
 .header-btns-group {
@@ -1860,11 +1889,11 @@ onBeforeUnmount(() => {
 
 .form-group label {
   display: block;
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.04em;
   margin-bottom: 4px;
 }
 
@@ -1887,9 +1916,9 @@ onBeforeUnmount(() => {
 }
 
 .input-readonly {
-  background: #f1f5f9;
+  background: var(--bg-subtle);
   cursor: not-allowed;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .grid-2 {
@@ -1910,64 +1939,255 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.grid-fecha-aga-hora {
+  display: grid;
+  grid-template-columns: 1.15fr 115px 1fr;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.grid-fecha-aga-hora .form-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.field-label-row {
+  height: 20px;
+  min-height: 20px;
+  max-height: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  box-sizing: border-box;
+}
+
+.field-label-row label {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.form-control-aligned {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  box-sizing: border-box !important;
+  padding: 8px 10px !important;
+  font-size: 0.86rem !important;
+  line-height: 1.3 !important;
+}
+
+.grid-fecha-aga-hora .input-with-action {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.grid-fecha-aga-hora .input-with-action input {
+  width: 100%;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding-right: 36px !important;
+}
+
+.grid-novedad-meta {
+  display: grid;
+  grid-template-columns: 1.15fr 95px 1fr 1.6fr;
+  gap: 8px;
+}
+
 @media (max-width: 640px) {
-  .grid-2, .grid-3, .grid-4 {
+  .grid-2, .grid-3, .grid-4, .grid-fecha-aga-hora {
     grid-template-columns: 1fr;
+  }
+  .grid-novedad-meta {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 .nlp-detection-badge {
-  background: #e0f2fe;
-  border: 1px solid #7dd3fc;
-  color: #0284c7;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
   padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
   margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.aga-spatial-status {
-  margin-top: 5px;
-  padding: 6px 9px;
-  border-radius: 5px;
-  background: #edf7f3;
-  border: 1px solid #b8e0d1;
-  color: #176b4d;
+.input-with-action {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-action input {
+  padding-right: 38px;
+}
+
+.btn-inline-geo {
+  position: absolute;
+  right: 4px;
+  top: 5px;
+  bottom: 5px;
+  margin: auto 0;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  color: var(--accent-blue);
+  border-radius: var(--radius-sm);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.8rem;
+  transition: all 0.15s ease;
+}
+
+.btn-inline-geo:hover {
+  background: var(--accent-blue);
+  color: #ffffff;
+  border-color: var(--accent-blue);
+}
+
+.aga-info-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-info-icon {
+  background: transparent;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--accent-blue);
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.btn-info-icon:hover {
+  transform: scale(1.15);
+}
+
+.btn-info-icon.warning {
+  color: var(--accent-amber);
+}
+
+.btn-info-icon.error {
+  color: var(--accent-red);
+}
+
+.aga-floating-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: max-content;
+  max-width: 280px;
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
   font-size: 0.72rem;
   line-height: 1.35;
+  color: var(--text-main);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: auto;
 }
 
-.aga-spatial-status.warning {
-  background: #fff5e6;
-  border-color: #f1d3a1;
-  color: #8a5b14;
+.aga-floating-popup::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #ffffff transparent transparent transparent;
 }
 
-.aga-spatial-status.error {
-  background: #fff0ef;
-  border-color: #efc2bf;
-  color: #9b3833;
+.aga-floating-popup.success {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+.aga-floating-popup.success::after {
+  border-color: #f0fdf4 transparent transparent transparent;
 }
 
-.btn-geo {
-  width: 100%;
-  margin-top: 5px;
-  padding: 6px 9px;
-  background: #e8f4fd;
-  border: 1px solid #9dcced;
-  color: #0984e3;
-  font-size: 0.72rem;
-  font-weight: 600;
-  border-radius: 5px;
+.aga-floating-popup.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+.aga-floating-popup.warning::after {
+  border-color: #fffbeb transparent transparent transparent;
+}
+
+.aga-floating-popup.error {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.aga-floating-popup.error::after {
+  border-color: #fef2f2 transparent transparent transparent;
+}
+
+.aga-floating-popup .popup-text {
+  flex: 1;
+}
+
+.btn-close-popup {
+  background: transparent;
+  border: none;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: inherit;
+  opacity: 0.6;
   cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 0 2px;
 }
 
-.btn-geo:hover {
-  background: #d0e8fa;
+.btn-close-popup:hover {
+  opacity: 1;
+}
+
+.fade-popup-enter-active,
+.fade-popup-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-popup-enter-from,
+.fade-popup-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 4px);
 }
 
 .photo-field-group {

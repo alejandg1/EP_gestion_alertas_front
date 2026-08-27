@@ -143,7 +143,7 @@ async function ejecutarRegistro() {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(15, 39, 68, 0.6);
   backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
@@ -154,17 +154,17 @@ async function ejecutarRegistro() {
 
 .modal-card {
   background: #ffffff;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   width: 100%;
   max-width: 440px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
-  border: 1px solid #cbd5e1;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border);
   overflow: hidden;
 }
 
 .modal-header {
-  padding: 12px 18px;
-  background: #0a3d62;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #0f2744 0%, #163b65 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -181,23 +181,29 @@ async function ejecutarRegistro() {
   background: transparent;
   border: none;
   color: #ffffff;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 4px;
   line-height: 1;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.btn-close:hover {
+  opacity: 1;
 }
 
 .modal-body {
-  padding: 18px;
+  padding: 22px 24px;
 }
 
 .modal-subtitle {
   margin: 0 0 16px 0;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 800;
-  color: #0a3d62;
-  letter-spacing: 0.5px;
+  color: var(--primary-navy);
+  letter-spacing: -0.01em;
 }
 
 .form-group {
@@ -206,27 +212,29 @@ async function ejecutarRegistro() {
 
 .form-group label {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-muted);
   text-transform: uppercase;
-  margin-bottom: 5px;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
 }
 
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   font-size: 0.88rem;
   background: #ffffff;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .form-group input:focus,
 .form-group select:focus {
-  border-color: #0984e3;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
   outline: none;
 }
 
@@ -234,12 +242,12 @@ async function ejecutarRegistro() {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 20px;
 }
 
 .alert {
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   font-weight: 600;
   margin-bottom: 12px;
@@ -247,8 +255,8 @@ async function ejecutarRegistro() {
 
 .alert-error {
   background: #fee2e2;
-  border: 1px solid #fca5a5;
-  color: #991b1b;
+  border: 1px solid #fecaca;
+  color: var(--accent-red);
 }
 
 .alert-success {
