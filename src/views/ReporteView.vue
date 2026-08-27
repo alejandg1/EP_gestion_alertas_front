@@ -1848,4 +1848,13 @@ onBeforeUnmount(() => {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* En ReporteView.vue */
+.reporte-container {
+  width: 100%;
+  height: 100vh;           /* O 100% según tu estructura */
+  overflow-y: auto;        /* Habilita el scroll dentro del reporte */
+  overflow-x: hidden;      /* Evita scroll horizontal indeseado */
+  box-sizing: border-box;
+}
 </style>
