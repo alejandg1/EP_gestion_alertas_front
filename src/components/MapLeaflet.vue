@@ -1,5 +1,5 @@
 <template>
-  <div class="map-container-root">
+  <div class="map-container-root" :class="{ 'is-expanded': isExpanded }">
     <div class="map-toolbar">
       <div class="map-controls-group">
         <label class="checkbox-label">
@@ -11,9 +11,15 @@
           <span>Mostrar zonas AGA</span>
         </label>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos">
-        <i class="fa-solid fa-location-crosshairs"></i> Centrar en eventos
-      </button>
+      <div class="map-actions-group">
+        <button type="button" class="btn btn-secondary btn-m btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos">
+          <i class="fa-solid fa-location-crosshairs"></i> Centrar en eventos
+        </button>
+        <button type="button" class="btn btn-primary btn-m btn-expandir" @click="toggleExpandir" :title="isExpanded ? 'Contraer mapa' : 'Expandir mapa a pantalla completa'">
+          <i :class="isExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'"></i>
+          <span>{{ isExpanded ? 'Contraer Mapa' : 'Expandir Mapa' }}</span>
+        </button>
+      </div>
     </div>
 
     <div ref="mapElement" class="leaflet-map-box"></div>
@@ -50,6 +56,23 @@ let heatLayer = null;
 
 const mostrarKDE = ref(true);
 const mostrarAGA = ref(true);
+const isExpanded = ref(false);
+
+function toggleExpandir() {
+  isExpanded.value = !isExpanded.value;
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize();
+      ajustarVista();
+    }
+  }, 200);
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Escape' && isExpanded.value) {
+    toggleExpandir();
+  }
+}
 
 function extraerCoords(item) {
   if (!item) return null;
@@ -261,9 +284,11 @@ watch(() => props.novedades, () => {
 
 onMounted(() => {
   initMap();
+  window.addEventListener('keydown', handleKeydown);
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown);
   if (map) {
     map.remove();
     map = null;
@@ -276,6 +301,46 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  transition: all 0.25s ease;
+}
+
+/* Modo Expandido a Pantalla Completa */
+.map-container-root.is-expanded {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 16px 20px;
+  box-sizing: border-box;
+  gap: 10px;
+}
+
+.map-container-root.is-expanded .leaflet-map-box {
+  flex: 1;
+  height: 100% !important;
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+}
+
+.map-container-root.is-expanded .map-toolbar {
+  background: #0a3d62;
+  color: #ffffff;
+  border-color: #0c4a78;
+}
+
+.map-container-root.is-expanded .checkbox-label {
+  color: #ffffff;
+}
+
+.map-container-root.is-expanded .map-legend {
+  background: rgba(255, 255, 255, 0.96);
 }
 
 .map-toolbar {
@@ -295,6 +360,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 18px;
   flex-wrap: wrap;
+}
+
+.map-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .checkbox-label {
@@ -318,8 +390,7 @@ onBeforeUnmount(() => {
   margin: 0;
 }
 
-.btn-ajustar {
-  margin-left: auto;
+.btn-ajustar, .btn-expandir {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -335,10 +406,13 @@ onBeforeUnmount(() => {
   .map-controls-group {
     justify-content: space-between;
   }
-  .btn-ajustar {
+  .map-actions-group {
     margin-left: 0;
     width: 100%;
-    justify-content: center;
+    justify-content: space-between;
+  }
+  .map-actions-group .btn {
+    flex: 1;
   }
 }
 

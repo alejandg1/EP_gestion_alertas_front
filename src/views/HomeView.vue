@@ -31,20 +31,21 @@
             type="text"
             v-model="busqueda"
             placeholder="Buscar por RDS, titulo o colaborador..."
+            @input="onBusquedaInput"
           />
-          <button v-if="busqueda" class="btn-clear" @click="busqueda = ''" title="Limpiar busqueda">
+          <button v-if="busqueda" class="btn-clear" @click="limpiarBusqueda" title="Limpiar busqueda">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
         <div class="stats-group">
           <span class="stat-pill">
-            <i class="fa-solid fa-folder-open"></i> Total Reportes: <b>{{ reportes.length }}</b>
+            <i class="fa-solid fa-folder-open"></i> Total: <b>{{ totalReportes }}</b>
           </span>
           <span class="stat-pill">
-            <i class="fa-solid fa-triangle-exclamation"></i> Total Novedades: <b>{{ totalNovedadesCount }}</b>
+            <i class="fa-solid fa-triangle-exclamation"></i> Novedades: <b>{{ totalNovedadesCount }}</b>
           </span>
-          <button class="btn btn-sm btn-secondary" @click="cargarReportes" :disabled="loading" title="Recargar lista">
+          <button class="btn btn-sm btn-primary" @click="cargarReportes" :disabled="loading" title="Recargar lista">
             <i class="fa-solid fa-arrows-rotate" :class="{ 'fa-spin': loading }"></i>
             {{ loading ? 'Cargando...' : 'Actualizar' }}
           </button>
@@ -57,15 +58,16 @@
         <p>Cargando reportes de la Sala Situacional...</p>
       </div>
 
-      <div v-else-if="reportesFiltrados.length === 0" class="empty-state">
+      <div v-else-if="reportes.length === 0" class="empty-state">
         <h3>No se encontraron reportes</h3>
         <p v-if="busqueda">No hay resultados que coincidan con "{{ busqueda }}"</p>
+        <p v-else>No hay reportes registrados aún en la plataforma.</p>
       </div>
 
-      <!-- Grid de Reportes (Los mas recientes primero) -->
+      <!-- Grid de Reportes -->
       <div v-else class="reports-grid">
         <div
-          v-for="rep in reportesFiltrados"
+          v-for="rep in reportes"
           :key="rep._id"
           class="report-card"
           @click="abrirReporte(rep._id)"
@@ -100,10 +102,74 @@
             <span class="events-badge">
               <i class="fa-solid fa-list-check"></i> {{ (rep.novedades || []).length }} Novedades
             </span>
-            <button type="button" class="btn btn-sm btn-primary" @click.stop="abrirReporte(rep._id)">
-              Abrir Reporte <i class="fa-solid fa-arrow-right"></i>
+            <div class="card-footer-actions">
+              <button
+                type="button"
+                class="btn btn-sm btn-danger btn-del-report"
+                @click.stop="eliminarReporte(rep)"
+                title="Eliminar este reporte"
+              >
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-primary" @click.stop="abrirReporte(rep._id)">
+                Abrir Reporte <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Paginación y Límites -->
+      <div v-if="totalReportes > 0" class="pagination-bar">
+        <div class="pagination-info">
+          <span>
+            Mostrando página <b>{{ paginacion.page || page }}</b> de <b>{{ paginacion.totalPages || 1 }}</b> (Total: <b>{{ totalReportes }}</b> reportes)
+          </span>
+        </div>
+
+        <div class="pagination-controls">
+          <div class="limit-selector">
+            <label for="limit-select">Límite:</label>
+            <select id="limit-select" v-model="limit" @change="cambiarLimite">
+              <option :value="6">6</option>
+              <option :value="12">12</option>
+              <option :value="24">24</option>
+              <option :value="48">48</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            :disabled="!paginacion.hasPrevPage || loading"
+            @click="irAPagina((paginacion.page || page) - 1)"
+            title="Página anterior"
+          >
+            <i class="fa-solid fa-chevron-left"></i> Anterior
+          </button>
+
+          <div class="page-numbers">
+            <button
+              v-for="p in paginasVisibles"
+              :key="p"
+              type="button"
+              class="btn btn-sm page-btn"
+              :class="p === (paginacion.page || page) ? 'btn-primary active-page' : 'btn-outline'"
+              @click="irAPagina(p)"
+            >
+              {{ p }}
             </button>
           </div>
+
+          <button
+            type="button"
+            class="btn btn-sm btn-outline"
+            :disabled="!paginacion.hasNextPage || loading"
+            @click="irAPagina((paginacion.page || page) + 1)"
+            title="Página siguiente"
+          >
+            Siguiente <i class="fa-solid fa-chevron-right"></i>
+          </button>
         </div>
       </div>
 
@@ -134,6 +200,54 @@ const reportes = ref([]);
 const loading = ref(false);
 const creandoReporte = ref(false);
 const busqueda = ref('');
+const page = ref(1);
+const limit = ref(12);
+const totalReportes = ref(0);
+const paginacion = ref({
+  page: 1,
+  limit: 12,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPrevPage: false
+});
+
+let debounceTimer = null;
+function onBusquedaInput() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    page.value = 1;
+    cargarReportes();
+  }, 350);
+}
+
+function limpiarBusqueda() {
+  busqueda.value = '';
+  page.value = 1;
+  cargarReportes();
+}
+
+function cambiarLimite() {
+  page.value = 1;
+  cargarReportes();
+}
+
+function irAPagina(nuevaPagina) {
+  if (nuevaPagina < 1 || nuevaPagina > (paginacion.value.totalPages || 1)) return;
+  page.value = nuevaPagina;
+  cargarReportes();
+}
+
+const paginasVisibles = computed(() => {
+  const total = paginacion.value.totalPages || 1;
+  const current = paginacion.value.page || page.value || 1;
+  const pages = [];
+  const start = Math.max(1, current - 2);
+  const end = Math.min(total, current + 2);
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+});
 
 const showModalRegister = ref(false);
 
@@ -155,10 +269,24 @@ async function crearNuevoReporte() {
     const creadorNombre = usuario?.nombre || usuario?.correo || '';
     const fechaHoy = obtenerFechaActualISO();
     const horaHoy = obtenerHoraActual();
+    const anioActual = new Date().getFullYear();
+    let maxRdsNum = 0;
+    (reportes.value || []).forEach(r => {
+      if (r.numero_rds) {
+        const match = r.numero_rds.match(/-(\d+)$/);
+        if (match) {
+          const n = parseInt(match[1], 10);
+          if (n > maxRdsNum) maxRdsNum = n;
+        }
+      }
+    });
+    if (totalReportes.value > maxRdsNum) maxRdsNum = totalReportes.value;
+    const numRdsGenerado = `SEGURA-EP-GASGEC-SS-${anioActual}-${String(maxRdsNum + 1).padStart(3, '0')}`;
     const pronosticoHoy = calcularPronosticoInocar(fechaHoy);
+
     const dataCreacion = {
       titulo: 'Reporte de Novedades e Incidentes - Sala Situacional',
-      numero_rds: `SEGURA-EP-GASGEC-SS-${new Date().getFullYear()}-${String(reportes.value.length + 1).padStart(3, '0')}`,
+      numero_rds: numRdsGenerado,
       fecha_reporte: fechaHoy,
       hora_inicio: '06:00',
       hora_fin: horaHoy,
@@ -187,6 +315,20 @@ async function crearNuevoReporte() {
   }
 }
 
+async function eliminarReporte(rep) {
+  const nombreRep = rep.numero_rds || rep.titulo || 'este reporte';
+  const confirmacion = window.confirm(`¿Está seguro de eliminar el reporte "${nombreRep}"?\n\nEsta acción es irreversible y eliminará todas sus novedades.`);
+  if (!confirmacion) return;
+
+  try {
+    await reportesService.deleteReporte(rep._id);
+    toast.success('Reporte eliminado exitosamente');
+    await cargarReportes();
+  } catch (err) {
+    toast.error('Error al eliminar reporte: ' + (err.response?.data?.mensaje || err.message));
+  }
+}
+
 function obtenerTextoColaboradores(rep) {
   if (rep.colaboradores && Array.isArray(rep.colaboradores) && rep.colaboradores.length > 0) {
     return rep.colaboradores
@@ -201,31 +343,44 @@ const totalNovedadesCount = computed(() => {
   return reportes.value.reduce((acc, curr) => acc + (curr.novedades?.length || 0), 0);
 });
 
-// Ordenar los mas recientes primero
-const reportesOrdenados = computed(() => {
-  return [...reportes.value].sort((a, b) => {
-    const fechaA = new Date(a.createdAt || a.fecha_reporte || 0).getTime();
-    const fechaB = new Date(b.createdAt || b.fecha_reporte || 0).getTime();
-    return fechaB - fechaA;
-  });
-});
-
-const reportesFiltrados = computed(() => {
-  if (!busqueda.value.trim()) return reportesOrdenados.value;
-  const q = busqueda.value.toLowerCase();
-  return reportesOrdenados.value.filter(r =>
-    (r.titulo && r.titulo.toLowerCase().includes(q)) ||
-    (r.numero_rds && r.numero_rds.toLowerCase().includes(q)) ||
-    (r.elaborado_por && r.elaborado_por.toLowerCase().includes(q)) ||
-    (r.fecha_reporte && r.fecha_reporte.includes(q))
-  );
-});
-
 async function cargarReportes() {
   loading.value = true;
   try {
-    const data = await reportesService.getAll();
-    reportes.value = Array.isArray(data) ? data : [];
+    const params = {
+      page: page.value,
+      limit: limit.value
+    };
+    if (busqueda.value.trim()) params.busqueda = busqueda.value.trim();
+
+    const data = await reportesService.getAll(params);
+    if (data && data.reportes) {
+      reportes.value = data.reportes;
+      totalReportes.value = data.total !== undefined ? data.total : data.reportes.length;
+      if (data.paginacion) {
+        paginacion.value = data.paginacion;
+      } else {
+        const totalP = Math.ceil(totalReportes.value / limit.value) || 1;
+        paginacion.value = {
+          total: totalReportes.value,
+          page: page.value,
+          limit: limit.value,
+          totalPages: totalP,
+          hasNextPage: page.value < totalP,
+          hasPrevPage: page.value > 1
+        };
+      }
+    } else {
+      reportes.value = Array.isArray(data) ? data : [];
+      totalReportes.value = reportes.value.length;
+      paginacion.value = {
+        total: totalReportes.value,
+        page: 1,
+        limit: limit.value,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPrevPage: false
+      };
+    }
   } catch (err) {
     console.error('Error al cargar reportes:', err);
   } finally {
@@ -261,8 +416,10 @@ onMounted(() => {
 
 <style scoped>
 .home-wrapper {
-  min-height: 100vh;
   width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -482,6 +639,25 @@ onMounted(() => {
   padding-top: 14px;
 }
 
+.card-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-del-report {
+  padding: 6px 10px;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  transition: all 0.2s ease;
+}
+
+.btn-del-report:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
 .events-badge {
   font-size: 0.8rem;
   font-weight: 700;
@@ -508,6 +684,97 @@ onMounted(() => {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
+}
+
+/* Barra de Paginación */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 30px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 14px 24px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-info {
+  font-size: 0.88rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.pagination-info b {
+  color: #0a3d62;
+  font-weight: 800;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.limit-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #475569;
+  margin-right: 6px;
+}
+
+.limit-selector select {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0a3d62;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 4px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.filter-select {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #0f172a;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.filter-select:focus {
+  border-color: #0284c7;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25);
 }
 
 @keyframes spin {

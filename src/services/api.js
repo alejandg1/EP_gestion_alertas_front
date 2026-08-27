@@ -45,8 +45,8 @@ export const authService = {
     return res.data;
   },
 
-  async registro({ correo, password, nombre }) {
-    const res = await api.post('/auth/registro', { correo, password, nombre });
+  async registro({ correo, password, nombre, rol }) {
+    const res = await api.post('/auth/registro', { correo, password, nombre, rol });
     return res.data;
   },
 
@@ -64,6 +64,11 @@ export const authService = {
       localStorage.removeItem('segura_jwt_token');
       localStorage.removeItem('segura_usuario');
     }
+  },
+
+  async chpass({ currentPassword, newPassword, usuarioId }) {
+    const res = await api.post('/auth/chpass', { currentPassword, newPassword, usuarioId });
+    return res.data;
   },
 
   getUsuarioSesion() {
@@ -89,9 +94,13 @@ export const authService = {
 };
 
 export const reportesService = {
-  async getAll() {
-    const res = await api.get('/reportes');
-    return res.data?.reportes || (Array.isArray(res.data) ? res.data : []);
+  async getAll(params = null) {
+    if (!params) {
+      const res = await api.get('/reportes');
+      return res.data?.reportes || (Array.isArray(res.data) ? res.data : []);
+    }
+    const res = await api.get('/reportes', { params });
+    return res.data;
   },
 
   async getById(id) {
@@ -104,8 +113,23 @@ export const reportesService = {
     return res.data?.reporte || res.data;
   },
 
+  async actualizarParametros(id, parametros) {
+    const res = await api.put(`/reportes/${id}/parametros`, parametros);
+    return res.data;
+  },
+
   async addNovedad(reporteId, novedadData) {
     const res = await api.post(`/reportes/${reporteId}/novedades`, novedadData);
+    return res.data;
+  },
+
+  async updateNovedad(reporteId, novedadId, novedadData) {
+    const res = await api.put(`/reportes/${reporteId}/novedades/${novedadId}`, novedadData);
+    return res.data;
+  },
+
+  async deleteNovedad(reporteId, novedadId) {
+    const res = await api.delete(`/reportes/${reporteId}/novedades/${novedadId}`);
     return res.data;
   },
 
@@ -115,6 +139,16 @@ export const reportesService = {
         'Content-Type': 'multipart/form-data'
       }
     });
+    return res.data;
+  },
+
+  async deleteReporte(id) {
+    const res = await api.delete(`/reportes/${id}`);
+    return res.data;
+  },
+
+  async delete(id) {
+    const res = await api.delete(`/reportes/${id}`);
     return res.data;
   },
 

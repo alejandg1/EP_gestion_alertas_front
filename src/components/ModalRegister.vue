@@ -54,6 +54,14 @@
           />
         </div>
 
+        <div class="form-group">
+          <label for="reg_rol">Rol de Usuario:</label>
+          <select id="reg_rol" v-model="form.rol" class="select-rol">
+            <option value="operador">Operador</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" @click="cerrar">
             <i class="fa-solid fa-ban"></i> Cancelar
@@ -61,7 +69,7 @@
           <button type="submit" class="btn btn-primary" :disabled="loading">
             <i v-if="loading" class="fa-solid fa-spinner fa-spin"></i>
             <i v-else class="fa-solid fa-user-check"></i>
-            {{ loading ? 'Registrando...' : 'Registrar Operador' }}
+            {{ loading ? 'Registrando...' : 'Registrar Usuario' }}
           </button>
         </div>
       </form>
@@ -85,7 +93,8 @@ const emit = defineEmits(['update:modelValue', 'registered']);
 const form = reactive({
   nombre: '',
   correo: '',
-  password: ''
+  password: '',
+  rol: 'operador'
 });
 
 const loading = ref(false);
@@ -107,20 +116,22 @@ async function ejecutarRegistro() {
     const res = await authService.registro({
       nombre: form.nombre.trim(),
       correo: form.correo.trim(),
-      password: form.password
+      password: form.password,
+      rol: form.rol
     });
 
-    successMsg.value = 'Operador registrado con exito.';
+    successMsg.value = `Usuario (${form.rol}) registrado con éxito.`;
     form.nombre = '';
     form.correo = '';
     form.password = '';
+    form.rol = 'operador';
     emit('registered', res);
 
     setTimeout(() => {
       cerrar();
     }, 1200);
   } catch (err) {
-    const msg = err.response?.data?.error || err.message || 'Error al registrar operador';
+    const msg = err.response?.data?.mensaje || err.response?.data?.error || err.message || 'Error al registrar usuario';
     errorMsg.value = msg;
   } finally {
     loading.value = false;
@@ -202,15 +213,19 @@ async function ejecutarRegistro() {
   margin-bottom: 5px;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   font-size: 0.88rem;
+  background: #ffffff;
+  color: #1e293b;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   border-color: #0984e3;
   outline: none;
 }

@@ -13,6 +13,15 @@
       </div>
 
       <div class="nav-right">
+        <button
+          v-if="reporte._id && reporte._id !== 'nuevo'"
+          type="button"
+          class="btn btn-danger btn-xs btn-del-report-nav"
+          @click="eliminarReporteActual"
+          title="Eliminar este reporte"
+        >
+          <i class="fa-solid fa-trash-can"></i> Eliminar Reporte
+        </button>
         <div class="status-pill" :class="isSocketConnected ? 'online' : 'offline'">
           <span class="dot"></span>
           <span>{{ isSocketConnected ? 'Conectado' : 'Desconectado' }}</span>
@@ -219,7 +228,7 @@
             <h2>2. Parametros del Reporte Consolidado</h2>
             <button
               type="button"
-              class="btn btn-secondary btn-xs"
+              class="btn btn-secondary btn-m"
               @click="guardarParametrosReporte"
               :disabled="guardandoParametros"
             >
@@ -459,61 +468,102 @@
               class="novedad-item-card"
             >
               <div class="item-header">
-                <span class="item-index">#{{ idx + 1 }}</span>
-                <span class="item-tipo">{{ obtenerNombreTipo(nov.tipo_evento || nov.tipo) }}</span>
-                <span class="item-aga">AGA: {{ nov.aga || 'N/D' }}</span>
-                <span class="item-hora">{{ nov.hora_evento || nov.hora || '00:00' }}</span>
+                <span>#{{ idx + 1 }}
+                  <select
+                    v-model="nov.tipo_evento"
+                    @change="onNovedadTipoChange(nov)"
+                    style="width:auto; display:inline-block; margin-left: 5px;"
+                  >
+                    <option value="AGUA">🚰 Vía anegada / Acumulación de agua</option>
+                    <option value="ARBOL">🌳 Caída de árbol</option>
+                    <option value="DESLIZAMIENTO">⛰️ Deslizamiento / Socavón</option>
+                    <option value="POSTE">⚡ Caída de postes</option>
+                    <option value="SINIESTRO">🚗 Siniestros de tránsito</option>
+                    <option value="INUNDACION">🌊 Inundaciones</option>
+                    <option value="VENDAVAL">💨 Vendavales</option>
+                    <option value="AFECTACION">🏚️ Afectación estructural</option>
+                  </select>
+                </span>
                 <button
                   type="button"
                   class="btn btn-danger btn-xs"
-                  @click="eliminarNovedad(idx)"
+                  @click="eliminarNovedad(nov, idx)"
                   title="Eliminar novedad"
                 >
-                  <i class="fa-solid fa-trash-can"></i> Eliminar
+                  ✕ Eliminar
                 </button>
               </div>
 
-              <p class="item-dir">{{ nov.direccion || nov.dir }}</p>
+              <input
+                type="text"
+                v-model="nov.direccion"
+                @blur="guardarEdicionNovedad(nov)"
+              />
 
-              <div class="item-meta-grid">
-                <div class="meta-field">
-                  <label>Recurso Asignado:</label>
-                  <select v-model="nov.recurso_asignado">
-                    <option value="INS-ALC 🚙">INS-ALC 🚙</option>
-                    <option value="HK 🚛">HK 🚛</option>
-                    <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
-                    <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
-                    <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
-                    <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
-                    <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
-                    <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
-                    <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
-                    <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
-                    <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
-                  </select>
-                </div>
-
-                <div class="meta-field">
-                  <label>Estado:</label>
-                  <select v-model="nov.estado_operativo">
-                    <option value="⛔PENDIENTE">⛔PENDIENTE</option>
-                    <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
-                    <option value="✅ATENDIDO">✅ATENDIDO</option>
-                  </select>
-                </div>
+              <div class="grid-4" style="margin-top:6px;">
+                <input
+                  type="date"
+                  aria-label="Fecha del evento"
+                  v-model="nov.fecha_evento"
+                  @blur="guardarEdicionNovedad(nov)"
+                />
+                <input
+                  type="text"
+                  aria-label="AGA"
+                  v-model="nov.aga"
+                  title="AGA vinculada a las coordenadas WGS84; puede corregirse manualmente"
+                  @blur="guardarEdicionNovedad(nov)"
+                />
+                <input
+                  type="time"
+                  aria-label="Hora del evento"
+                  v-model="nov.hora_evento"
+                  @blur="guardarEdicionNovedad(nov)"
+                />
+                <input
+                  type="text"
+                  aria-label="Coordenadas"
+                  title="Latitud, longitud"
+                  :value="obtenerCoordsTexto(nov)"
+                  @input="onInputCoordsNovedad(nov, $event.target.value)"
+                  @blur="guardarEdicionNovedad(nov)"
+                  placeholder="-2.1894, -79.8891"
+                />
               </div>
 
-              <div v-if="nov.fotos && nov.fotos.length" class="item-photos">
+              <div class="grid-2" style="margin-top:6px;">
+                <select v-model="nov.recurso_asignado" @change="guardarEdicionNovedad(nov)">
+                  <option value="INS-ALC 🚙">INS-ALC 🚙</option>
+                  <option value="HK 🚛">HK 🚛</option>
+                  <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
+                  <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
+                  <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
+                  <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
+                  <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
+                  <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
+                  <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
+                  <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
+                  <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
+                </select>
+
+                <select v-model="nov.estado_operativo" @change="guardarEdicionNovedad(nov)">
+                  <option value="⛔PENDIENTE">⛔PENDIENTE</option>
+                  <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
+                  <option value="✅ATENDIDO">✅ATENDIDO</option>
+                </select>
+              </div>
+
+              <div v-if="nov.fotos && nov.fotos.length" class="item-photos" style="margin-top:8px;">
                 <div
                   v-for="(f, fIdx) in nov.fotos"
                   :key="fIdx"
                   class="item-photo-wrapper"
                   @click="abrirFotoModal(f)"
-                  title="Clic para ampliar fotografia"
+                  title="Clic para ampliar fotografía"
                 >
                   <img
                     :src="resolverUrlFoto(f)"
-                    alt="Evidencia fotografica"
+                    alt="Evidencia fotográfica"
                     class="thumb-img"
                     loading="lazy"
                   />
@@ -541,15 +591,15 @@
           ></textarea>
 
           <div class="btn-row" style="margin-top: 10px;">
-            <button type="button" class="btn btn-secondary btn-sm" @click="copiarConsolidado">
+            <button type="button" class="btn btn-secondary btn-m" @click="copiarConsolidado">
               <i class="fa-solid fa-clipboard"></i> Copiar Reporte Consolidado
             </button>
-            <button type="button" class="btn btn-success btn-sm" @click="enviarWaConsolidado">
+            <button type="button" class="btn btn-success btn-m" @click="enviarWaConsolidado">
               <i class="fa-brands fa-whatsapp"></i> Abrir en WhatsApp
             </button>
             <button
               type="button"
-              class="btn btn-primary btn-sm"
+              class="btn btn-primary btn-m"
               :disabled="descargandoWord"
               @click="generarWord"
             >
@@ -966,28 +1016,34 @@ async function guardarParametrosReporte() {
   guardandoParametros.value = true;
   try {
     const id = await asegurarReporteCreado();
+    const payloadParametros = {
+      titulo: reporte.titulo,
+      numero_rds: reporte.numero_rds,
+      fecha_reporte: reporte.fecha_reporte,
+      hora_inicio: reporte.hora_inicio,
+      hora_fin: reporte.hora_fin,
+      revisado_por: reporte.revisado_por,
+      cabecera: reporte.cabecera,
+      periodo: reporte.periodo,
+      inocar_fecha: reporte.inocar_fecha,
+      inocar_pleamar: reporte.inocar_pleamar,
+      inocar_bajamar: reporte.inocar_bajamar
+    };
+
+    // Actualizar via REST API
+    await reportesService.actualizarParametros(id, payloadParametros);
+
+    // Notificar via WebSocket en tiempo real
     const socket = getSocket();
     if (socket && socket.connected) {
       socket.emit('actualizar_parametros', {
         reporteId: id,
-        parametros: {
-          titulo: reporte.titulo,
-          numero_rds: reporte.numero_rds,
-          fecha_reporte: reporte.fecha_reporte,
-          hora_inicio: reporte.hora_inicio,
-          hora_fin: reporte.hora_fin,
-          revisado_por: reporte.revisado_por,
-          cabecera: reporte.cabecera,
-          periodo: reporte.periodo,
-          inocar_fecha: reporte.inocar_fecha,
-          inocar_pleamar: reporte.inocar_pleamar,
-          inocar_bajamar: reporte.inocar_bajamar
-        }
+        parametros: payloadParametros
       });
     }
-    toast.success('Parametros guardados y sincronizados en la Sala Situacional.');
+    toast.success('Parámetros guardados y sincronizados en la Sala Situacional.');
   } catch (err) {
-    toast.error('Error al guardar parametros: ' + err.message);
+    toast.error('Error al guardar parámetros: ' + (err.response?.data?.error || err.message));
   } finally {
     guardandoParametros.value = false;
   }
@@ -1082,9 +1138,154 @@ async function registrarYConsolidar() {
   }
 }
 
-function eliminarNovedad(index) {
-  if (confirm(`Desea eliminar la novedad #${index + 1}?`)) {
+async function guardarEdicionNovedad(nov) {
+  if (!nov) return;
+  if (!nov.tipo_evento && nov.tipo) nov.tipo_evento = nov.tipo;
+  if (!nov.fecha_evento && nov.fecha) nov.fecha_evento = nov.fecha;
+  if (!nov.hora_evento && nov.hora) nov.hora_evento = nov.hora;
+  if (!nov.direccion && nov.dir) nov.direccion = nov.dir;
+
+  const lat = nov.latitud !== undefined && nov.latitud !== null ? Number(nov.latitud) : (nov.lat !== undefined ? Number(nov.lat) : -2.1894);
+  const lng = nov.longitud !== undefined && nov.longitud !== null ? Number(nov.longitud) : (nov.lng !== undefined ? Number(nov.lng) : -79.8891);
+
+  const payload = {
+    tipo_evento: nov.tipo_evento || 'AGUA',
+    tipo: nov.tipo_evento || 'AGUA',
+    direccion: normalizarDescripcionNLP(nov.direccion || ''),
+    aga: nov.aga || 'N/D',
+    instituciones: nov.instituciones || '@Segura_EP',
+    fecha_evento: nov.fecha_evento || reporte.fecha_reporte || hoy,
+    fecha: nov.fecha_evento || reporte.fecha_reporte || hoy,
+    hora_evento: nov.hora_evento || '00:00',
+    hora: nov.hora_evento || '00:00',
+    latitud: lat,
+    longitud: lng,
+    recurso_asignado: nov.recurso_asignado || 'INS-ALC 🚙',
+    estado_operativo: nov.estado_operativo || '⛔PENDIENTE',
+    fotos: Array.isArray(nov.fotos) ? nov.fotos : [],
+    descripcion: nov.descripcion || `${textoEventoIndividual[nov.tipo_evento] || nov.tipo_evento} en ${nov.direccion}`,
+    acciones_inmediatas: nov.acciones_inmediatas || `Notificado a ${nov.instituciones}`
+  };
+
+  const id = reporte._id;
+  if (id && id !== 'nuevo' && nov._id) {
+    try {
+      const res = await reportesService.updateNovedad(id, nov._id, payload);
+      if (res && res.colaboradores) {
+        reporte.colaboradores = res.colaboradores;
+      }
+      if (res && res.elaborado_por) {
+        reporte.elaborado_por = res.elaborado_por;
+      }
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.emit('actualizar_novedad', {
+          reporteId: id,
+          novedadId: nov._id,
+          cambios: payload
+        });
+      }
+      toast.success('Novedad actualizada correctamente.');
+    } catch (err) {
+      toast.error('Error al actualizar novedad: ' + (err.response?.data?.error || err.message));
+    }
+  }
+}
+
+function onNovedadTipoChange(nov) {
+  nov.tipo = nov.tipo_evento;
+  if (!nov.instituciones || nov.instituciones === '@emapagye @interagua' || nov.instituciones.startsWith('@')) {
+    nov.instituciones = institucionesPorTipo[nov.tipo_evento] || '@Segura_EP';
+  }
+  guardarEdicionNovedad(nov);
+}
+
+function obtenerCoordsTexto(nov) {
+  const lat = nov.latitud !== undefined && nov.latitud !== null ? nov.latitud : (nov.coordenadas?.lat !== undefined ? nov.coordenadas.lat : nov.lat);
+  const lng = nov.longitud !== undefined && nov.longitud !== null ? nov.longitud : (nov.coordenadas?.lng !== undefined ? nov.coordenadas.lng : nov.lng);
+  if (lat !== undefined && lng !== undefined && lat !== null && lng !== null) {
+    return `${lat}, ${lng}`;
+  }
+  return '';
+}
+
+function onInputCoordsNovedad(nov, texto) {
+  const coords = parsearCoordenadasNLP(texto);
+  if (coords) {
+    nov.latitud = coords.lat;
+    nov.longitud = coords.lng;
+    nov.lat = coords.lat;
+    nov.lng = coords.lng;
+    const calcAga = obtenerAGAPorCoordenadas(coords.lat, coords.lng);
+    if (calcAga) nov.aga = calcAga;
+  }
+}
+
+async function eliminarNovedad(nov, index) {
+  if (!confirm(`¿Desea eliminar la novedad #${index + 1}?`)) {
+    return;
+  }
+
+  const id = reporte._id;
+  const novedadId = nov?._id;
+
+  if (id && id !== 'nuevo' && novedadId) {
+    try {
+      const res = await reportesService.deleteNovedad(id, novedadId);
+      if (res && res.colaboradores) {
+        reporte.colaboradores = res.colaboradores;
+      }
+      if (res && res.elaborado_por) {
+        reporte.elaborado_por = res.elaborado_por;
+      }
+      const socket = getSocket();
+      if (socket && socket.connected) {
+        socket.emit('eliminar_novedad', {
+          reporteId: id,
+          novedadId
+        });
+      }
+      reporte.novedades.splice(index, 1);
+      toast.success('Novedad eliminada exitosamente.');
+    } catch (err) {
+      toast.error('Error al eliminar novedad: ' + (err.response?.data?.error || err.message));
+    }
+  } else {
     reporte.novedades.splice(index, 1);
+    toast.success('Novedad eliminada.');
+  }
+}
+
+async function eliminarFotoDeNovedad(nov, fIdx) {
+  if (nov.fotos && nov.fotos.length > fIdx) {
+    nov.fotos.splice(fIdx, 1);
+    await guardarEdicionNovedad(nov);
+  }
+}
+
+async function subirFotoDirectaANovedad(nov, event) {
+  const files = Array.from(event.target.files || []);
+  if (!files.length) return;
+
+  if ((nov.fotos?.length || 0) + files.length > 2) {
+    toast.warning('Únicamente se permite adjuntar hasta 2 fotografías por novedad.');
+    event.target.value = '';
+    return;
+  }
+
+  const formData = new FormData();
+  files.forEach(f => formData.append('fotos', f));
+
+  try {
+    const uploadRes = await reportesService.uploadFotos(formData);
+    const subidas = uploadRes.fotos || [];
+    if (!Array.isArray(nov.fotos)) nov.fotos = [];
+    nov.fotos = nov.fotos.concat(subidas);
+    await guardarEdicionNovedad(nov);
+  } catch (err) {
+    toast.error('Error al subir fotografía: ' + err.message);
+  } finally {
+    event.target.value = '';
   }
 }
 
@@ -1269,6 +1470,23 @@ async function sincronizarSharePoint() {
   }
 }
 
+async function eliminarReporteActual() {
+  if (!reporte._id || reporte._id === 'nuevo') return;
+
+  const nombreRep = reporte.numero_rds || reporte.titulo || 'este reporte';
+  const confirmacion = window.confirm(`¿Está seguro de eliminar el reporte "${nombreRep}"?\n\nEsta acción es irreversible y eliminará todas sus novedades registradas.`);
+  if (!confirmacion) return;
+
+  try {
+    await reportesService.deleteReporte(reporte._id);
+    toast.success('Reporte eliminado exitosamente');
+    disconnectSocket();
+    router.push('/reportes');
+  } catch (err) {
+    toast.error('Error al eliminar reporte: ' + (err.response?.data?.mensaje || err.message));
+  }
+}
+
 function onCambiarReporte(id) {
   disconnectSocket();
   if (!id) {
@@ -1353,6 +1571,46 @@ function setupSockets() {
     if (payload.colaboradores) {
       reporte.colaboradores = payload.colaboradores;
     }
+  });
+
+  socket.on('novedad_actualizada', (payload) => {
+    if (payload.novedad) {
+      const idx = reporte.novedades.findIndex(n =>
+        (n._id && payload.novedad._id && String(n._id) === String(payload.novedad._id))
+      );
+      if (idx >= 0) {
+        Object.assign(reporte.novedades[idx], payload.novedad);
+      }
+    }
+    if (payload.colaboradores) {
+      reporte.colaboradores = payload.colaboradores;
+    }
+    if (payload.elaborado_por) {
+      reporte.elaborado_por = payload.elaborado_por;
+    }
+  });
+
+  socket.on('novedad_eliminada', (payload) => {
+    if (payload.novedadId) {
+      const idx = reporte.novedades.findIndex(n =>
+        (n._id && String(n._id) === String(payload.novedadId))
+      );
+      if (idx >= 0) {
+        reporte.novedades.splice(idx, 1);
+      }
+    }
+    if (payload.colaboradores) {
+      reporte.colaboradores = payload.colaboradores;
+    }
+    if (payload.elaborado_por) {
+      reporte.elaborado_por = payload.elaborado_por;
+    }
+  });
+
+  socket.on('reporte_eliminado', (payload) => {
+    toast.info(`El reporte ha sido eliminado por ${payload.eliminadoPor || 'otro colaborador'}.`);
+    disconnectSocket();
+    router.push('/reportes');
   });
 }
 
@@ -1463,9 +1721,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .reporte-container {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 0 10px 40px;
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 16px 28px 80px;
+  box-sizing: border-box;
 }
 
 .top-nav-bar {
@@ -1642,8 +1904,14 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
 @media (max-width: 640px) {
-  .grid-2, .grid-3 {
+  .grid-2, .grid-3, .grid-4 {
     grid-template-columns: 1fr;
   }
 }
@@ -2161,14 +2429,5 @@ onBeforeUnmount(() => {
   .sig-export {
     grid-template-columns: 1fr;
   }
-}
-
-/* En ReporteView.vue */
-.reporte-container {
-  width: 100%;
-  height: 100vh;           /* O 100% según tu estructura */
-  overflow-y: auto;        /* Habilita el scroll dentro del reporte */
-  overflow-x: hidden;      /* Evita scroll horizontal indeseado */
-  box-sizing: border-box;
 }
 </style>
