@@ -5,7 +5,6 @@
     <div class="dashboard-header">
       <div class="dashboard-title">
         <h2>Reportes de Sala Situacional</h2>
-        <p>Monitoreo y consolidacion de novedades e incidentes en tiempo real</p>
       </div>
 
       <div class="dashboard-actions">
