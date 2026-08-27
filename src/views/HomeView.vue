@@ -8,9 +8,6 @@
       </div>
 
       <div class="dashboard-actions">
-        <button type="button" class="btn btn-outline" @click="showModalRegister = true">
-          <i class="fa-solid fa-user-plus"></i> Registrar Operador
-        </button>
         <button
           type="button"
           class="btn btn-primary"
