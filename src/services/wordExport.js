@@ -201,12 +201,39 @@ function fechaMapaTecnico(iso) {
 }
 
 function cargarImagenCanvas(origen) {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     if (!origen) return resolve(null);
-    const imagen = new Image();
-    imagen.onload = () => resolve(imagen);
-    imagen.onerror = () => resolve(null);
-    imagen.src = origen;
+    try {
+      const imagen = new Image();
+      imagen.crossOrigin = "anonymous";
+      let resuelto = false;
+      const onExito = () => {
+        if (!resuelto) {
+          resuelto = true;
+          resolve(imagen);
+        }
+      };
+      const onError = () => {
+        if (!resuelto) {
+          resuelto = true;
+          resolve(null);
+        }
+      };
+      imagen.onload = onExito;
+      imagen.onerror = onError;
+      imagen.src = origen;
+      if (imagen.complete && imagen.naturalWidth > 0) {
+        onExito();
+      }
+      setTimeout(() => {
+        if (!resuelto) {
+          if (imagen.naturalWidth > 0) onExito();
+          else onError();
+        }
+      }, 1500);
+    } catch (e) {
+      resolve(null);
+    }
   });
 }
 
@@ -546,8 +573,18 @@ async function generarMapaTecnicoWord(eventosValidos, fechaISO) {
   contexto.fillRect(panelX, 142, 304, 762);
   contexto.strokeRect(panelX, 142, 304, 762);
 
-  const logo = await cargarImagenCanvas(LOGO_SEGURA_EP_BASE64);
-  if (logo) {
+  let logo = await cargarImagenCanvas(LOGO_SEGURA_EP_BASE64);
+  if (!logo) {
+    logo = await cargarImagenCanvas('/icons/logo_segura.png');
+  }
+  if (!logo) {
+    const logoNodo = document.querySelector('.header-logo-secondary') || document.querySelector('.header-logo');
+    if (logoNodo && logoNodo.src) {
+      logo = await cargarImagenCanvas(logoNodo.src);
+    }
+  }
+
+  if (logo && logo.width > 0 && logo.height > 0) {
     const maxAncho = 176;
     const maxAlto = 112;
     const factor = Math.min(maxAncho / logo.width, maxAlto / logo.height);
