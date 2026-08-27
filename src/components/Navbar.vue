@@ -16,7 +16,7 @@
             <i class="fa-solid fa-user-circle"></i> {{ usuario.nombre || usuario.correo }}
           </span>
 
-          <button type="button" class="btn btn-sm btn-outline-white" @click="$emit('open-register')">
+          <button v-if="usuario.rol === 'admin'" type="button" class="btn btn-sm btn-outline-white" @click="$emit('open-register')">
             <i class="fa-solid fa-user-plus"></i> Registrar Operador
           </button>
 
