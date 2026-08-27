@@ -19,19 +19,20 @@
   padding: 0;
 }
 
-body {
-  font-family: var(--font-family);
+html, body {
+  width: 100%;
+  min-height: 100vh;
   background: var(--bg);
   color: var(--text);
-  padding: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 #app {
   width: 100%;
-  max-width: 1500px;
-  margin: 0 auto;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
 }
 
 h1, h2, h3, h4, h5, h6 {

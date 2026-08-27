@@ -1,14 +1,18 @@
 <template>
   <div v-if="modelValue" class="modal-backdrop" @click.self="cerrar">
     <div class="modal-card">
+      <!-- BARRA SUPERIOR (RECUADRO ROJO): LOGO E ÍCONO DE CERRAR -->
       <div class="modal-header">
-        <h3>Registrar Nuevo Operador</h3>
+        <img src="/icons/icon_blanco.png" alt="Segura EP" class="modal-logo" />
         <button type="button" class="btn-close" @click="cerrar" title="Cerrar modal">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
 
       <form @submit.prevent="ejecutarRegistro" class="modal-body">
+        <!-- TÍTULO EN CUERPO DEL MODAL (RECUADRO VERDE) -->
+        <h2 class="modal-subtitle">NUEVO OPERADOR</h2>
+
         <div v-if="errorMsg" class="alert alert-error">
           {{ errorMsg }}
         </div>
@@ -148,7 +152,7 @@ async function ejecutarRegistro() {
 }
 
 .modal-header {
-  padding: 14px 18px;
+  padding: 12px 18px;
   background: #0a3d62;
   color: #ffffff;
   display: flex;
@@ -156,24 +160,33 @@ async function ejecutarRegistro() {
   justify-content: space-between;
 }
 
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
+.modal-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
 }
 
 .btn-close {
   background: transparent;
   border: none;
   color: #ffffff;
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 2px 6px;
+  line-height: 1;
 }
 
 .modal-body {
   padding: 18px;
+}
+
+.modal-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0a3d62;
+  letter-spacing: 0.5px;
 }
 
 .form-group {

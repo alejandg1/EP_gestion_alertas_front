@@ -1,5 +1,5 @@
 <template>
-  <div class="login-page">
+  <div class="login-page" :style="pageBackgroundStyle">
     <div class="login-card">
       <div class="login-brand">
         <img src="/icons/icon_blanco.png" alt="Segura EP" class="login-logo" />
@@ -47,7 +47,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { authService } from '../services/api.js';
 
@@ -56,6 +56,16 @@ const correo = ref('');
 const password = ref('');
 const loading = ref(false);
 const errorMsg = ref('');
+
+// Ruta directa garantizada desde la carpeta public
+const bgImageUrl = '/icons/Gemini_Generated_Image_uhi1ycuhi1ycuhi1.jpg';
+
+const pageBackgroundStyle = computed(() => ({
+  backgroundImage: `linear-gradient(rgba(10, 61, 98, 0.2), rgba(10, 61, 98, 0.45)), url("${bgImageUrl}")`,
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center center',
+  backgroundSize: 'cover'
+}));
 
 async function handleLogin() {
   loading.value = true;
@@ -75,11 +85,19 @@ async function handleLogin() {
 
 <style scoped>
 .login-page {
-  min-height: 85vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 999;
+  overflow: hidden; /* Elimina cualquier scrollbar generado por el contenedor */
+  
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  box-sizing: border-box;
 }
 
 .login-card {
@@ -87,9 +105,11 @@ async function handleLogin() {
   border-radius: 10px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
   border: 1px solid #cbd5e1;
   overflow: hidden;
+  position: relative;
+  z-index: 10;
 }
 
 .login-brand {
@@ -182,5 +202,13 @@ async function handleLogin() {
   background: #fee2e2;
   border: 1px solid #fca5a5;
   color: #991b1b;
+}
+
+:global(html, body) {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
 }
 </style>
