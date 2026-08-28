@@ -550,7 +550,7 @@
                   type="text"
                   aria-label="Coordenadas"
                   title="Latitud, longitud"
-                  :value="obtenerCoordsTexto(nov)"
+                  :value="nov.coordTexto !== undefined ? nov.coordTexto : obtenerCoordsTexto(nov)"
                   @input="onInputCoordsNovedad(nov, $event.target.value)"
                   @blur="guardarEdicionNovedad(nov)"
                   placeholder="-2.1894, -79.8891"
@@ -771,11 +771,11 @@ const formNovedad = reactive({
   instituciones: '@emapagye @interagua',
   fecha: hoy,
   hora: obtenerHoraActual(),
-  aga: 'A09',
+  aga: '',
   agaManual: false,
-  coordenadasTexto: '-2.138694, -79.936833',
-  lat: -2.138694,
-  lng: -79.936833,
+  coordenadasTexto: '',
+  lat: null,
+  lng: null,
   recurso_asignado: 'INS-ALC 🚙',
   estado_operativo: '⛔PENDIENTE'
 });
@@ -785,8 +785,8 @@ const nlpLabel = ref('');
 const previewAlertaInmediata = ref('');
 const fotosSeleccionadas = ref([]);
 const agaStatus = ref({
-  mensaje: '📍 A09 asignada automáticamente mediante el nuevo shapefile WGS84. Puede corregirla manualmente.',
-  tipo: 'success'
+  mensaje: '',
+  tipo: ''
 });
 
 const mostrarPopupAGA = ref(false);
@@ -859,7 +859,7 @@ function actualizarEstadoAGA() {
   const nuevoEstado = evaluarEstadoAGA(coords, formNovedad.aga, formNovedad.agaManual);
   if (nuevoEstado?.mensaje !== agaStatus.value?.mensaje) {
     agaStatus.value = nuevoEstado;
-    if (nuevoEstado?.mensaje) {
+    if (nuevoEstado?.mensaje && formNovedad.coordenadasTexto) {
       dispararPopupAGA();
     }
   } else {
@@ -875,7 +875,20 @@ function onAgaManualInput() {
 
 function recalcularAGADesdeCoordenadas() {
   formNovedad.agaManual = false;
-  alCambiarCoordenadas();
+  const coords = parsearCoordenadasNLP(formNovedad.coordenadasTexto);
+  if (coords) {
+    formNovedad.lat = coords.lat;
+    formNovedad.lng = coords.lng;
+    formNovedad.coordenadasTexto = coords.texto;
+    const calculada = obtenerAGAPorCoordenadas(coords.lat, coords.lng);
+    formNovedad.aga = calculada || 'N/D';
+  } else {
+    formNovedad.lat = null;
+    formNovedad.lng = null;
+    formNovedad.aga = 'N/D';
+  }
+  actualizarEstadoAGA();
+  generarAlertaInmediata();
 }
 
 function analizarTextoNLP() {
@@ -923,7 +936,6 @@ function alCambiarCoordenadas() {
   if (coords) {
     formNovedad.lat = coords.lat;
     formNovedad.lng = coords.lng;
-    formNovedad.coordenadasTexto = coords.texto;
     if (!formNovedad.agaManual) {
       const calculada = obtenerAGAPorCoordenadas(coords.lat, coords.lng);
       formNovedad.aga = calculada || 'N/D';
@@ -941,7 +953,7 @@ function alCambiarCoordenadas() {
 
 function generarAlertaInmediata() {
   const dir = formNovedad.direccion.trim() || 'PROSPERINA 6TO CALLEJON Y AV 41 DIAGONAL A LAS ROSAS';
-  const coord = formNovedad.coordenadasTexto.trim() || '-2.138694, -79.936833';
+  const coord = formNovedad.coordenadasTexto.trim();
   const tipo = formNovedad.tipo;
   const inst = formNovedad.instituciones.trim() || '@emapagye @interagua';
   const eventoStr = textoEventoIndividual[tipo] || 'acumulación de agua';
@@ -1195,8 +1207,11 @@ async function guardarEdicionNovedad(nov) {
   if (!nov.hora_evento && nov.hora) nov.hora_evento = nov.hora;
   if (!nov.direccion && nov.dir) nov.direccion = nov.dir;
 
-  const lat = nov.latitud !== undefined && nov.latitud !== null ? Number(nov.latitud) : (nov.lat !== undefined ? Number(nov.lat) : -2.1894);
-  const lng = nov.longitud !== undefined && nov.longitud !== null ? Number(nov.longitud) : (nov.lng !== undefined ? Number(nov.lng) : -79.8891);
+  const textoCoords = nov.coordTexto !== undefined ? nov.coordTexto : obtenerCoordsTexto(nov);
+  const coords = parsearCoordenadasNLP(textoCoords);
+  const lat = coords ? coords.lat : (nov.latitud !== undefined && nov.latitud !== null ? Number(nov.latitud) : (nov.lat !== undefined ? Number(nov.lat) : -2.1894));
+  const lng = coords ? coords.lng : (nov.longitud !== undefined && nov.longitud !== null ? Number(nov.longitud) : (nov.lng !== undefined ? Number(nov.lng) : -79.8891));
+  delete nov.coordTexto;
 
   const payload = {
     tipo_evento: nov.tipo_evento || 'AGUA',
@@ -1260,6 +1275,7 @@ function obtenerCoordsTexto(nov) {
 }
 
 function onInputCoordsNovedad(nov, texto) {
+  nov.coordTexto = texto;
   const coords = parsearCoordenadasNLP(texto);
   if (coords) {
     nov.latitud = coords.lat;
