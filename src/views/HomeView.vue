@@ -430,6 +430,7 @@ async function cargarReportes() {
     const data = await reportesService.getAll(params);
     if (data && data.reportes) {
       reportes.value = data.reportes;
+      console.log('Datos de reportes recibidos:', data);
       totalReportes.value = data.total !== undefined ? data.total : data.reportes.length;
       const totalP = data.totalPaginas || Math.ceil(totalReportes.value / limit.value) || 1;
       const curPage = data.pagina || page.value || 1;

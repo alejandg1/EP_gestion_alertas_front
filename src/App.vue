@@ -4,7 +4,7 @@
     <ToastContainer />
     <footer class="institutional-credit">
       <img src="/icons/escudo.png" alt="Escudo Guayaquil" class="credit-logo" />
-      <span>Elaborado y gestionado por la <strong>Sala Situacional de Segura EP</strong> — Sistema Integral de Reporte de Emergencias</span>
+      <span>Gestionado por la <strong>Sala Situacional de Segura EP</strong> — Sistema Integral de Reporte de Emergencias</span>
     </footer>
   </div>
 </template>
