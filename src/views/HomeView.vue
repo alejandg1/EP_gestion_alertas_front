@@ -97,13 +97,13 @@
       <div v-else-if="vistaModo === 'grid'" class="reports-grid">
         <div
           v-for="rep in reportes"
-          :key="rep._id"
+          :key="rep.id || rep._id"
           class="report-card"
-          @click="abrirReporte(rep._id)"
+          @click="abrirReporte(rep.id || rep._id)"
         >
           <div class="card-head">
             <span class="rds-code">{{ rep.numero_rds || 'RDS SIN CÓDIGO' }}</span>
-            <span class="date-tag"><i class="fa-regular fa-calendar"></i> {{ formatearFecha(rep.fecha_reporte) }}</span>
+            <span class="date-tag"><i class="fa-regular fa-calendar"></i> {{ formatearFecha(rep.fecha_reporte || rep.fecha) }}</span>
           </div>
 
           <h3 class="card-title" :title="rep.titulo">{{ rep.titulo }}</h3>
@@ -165,14 +165,14 @@
           <tbody>
             <tr
               v-for="rep in reportes"
-              :key="rep._id"
+              :key="rep.id || rep._id"
               class="table-row-clickable"
-              @click="abrirReporte(rep._id)"
+              @click="abrirReporte(rep.id || rep._id)"
             >
               <td>
                 <span class="table-rds">{{ rep.numero_rds || 'RDS SIN CÓDIGO' }}</span>
               </td>
-              <td class="tabular-nums">{{ formatearFecha(rep.fecha_reporte) }}</td>
+              <td class="tabular-nums">{{ formatearFecha(rep.fecha_reporte || rep.fecha) }}</td>
               <td class="tabular-nums">{{ rep.hora_inicio || '00:00' }} - {{ rep.hora_fin || '23:59' }}</td>
               <td>
                 <span class="badge-novedades">
@@ -369,7 +369,7 @@ async function crearNuevoReporte() {
       observaciones_generales: 'Monitoreo en tiempo real de lluvias y acumulación de agua.'
     };
     const nuevo = await reportesService.create(dataCreacion);
-    const idCreado = nuevo?._id || nuevo?.reporte?._id;
+    const idCreado = nuevo?.id || nuevo?._id || nuevo?.reporte?.id || nuevo?.reporte?._id;
     if (idCreado) {
       router.push(`/reportes/${idCreado}`);
     } else {
@@ -383,12 +383,13 @@ async function crearNuevoReporte() {
 }
 
 async function eliminarReporte(rep) {
+  const repId = rep.id || rep._id;
   const nombreRep = rep.numero_rds || rep.titulo || 'este reporte';
   const confirmacion = window.confirm(`¿Está seguro de eliminar el reporte "${nombreRep}"?\n\nEsta acción es irreversible y eliminará todas sus novedades.`);
-  if (!confirmacion) return;
+  if (!confirmacion || !repId) return;
 
   try {
-    await reportesService.deleteReporte(rep._id);
+    await reportesService.deleteReporte(repId);
     toast.success('Reporte eliminado exitosamente');
     await cargarReportes();
   } catch (err) {
@@ -397,13 +398,20 @@ async function eliminarReporte(rep) {
 }
 
 function obtenerTextoColaboradores(rep) {
+  if (rep.elaborado_por) return rep.elaborado_por;
+  if (rep.reporte_colaboradores && Array.isArray(rep.reporte_colaboradores) && rep.reporte_colaboradores.length > 0) {
+    return rep.reporte_colaboradores
+      .map(c => c.usuario?.nombre || c.usuario?.correo)
+      .filter(Boolean)
+      .join(' – ');
+  }
   if (rep.colaboradores && Array.isArray(rep.colaboradores) && rep.colaboradores.length > 0) {
     return rep.colaboradores
       .map(c => typeof c === 'string' ? c : (c.nombre || c.correo))
       .filter(Boolean)
       .join(', ');
   }
-  return rep.elaborado_por || 'Sin asignar';
+  return 'Sin asignar';
 }
 
 const totalNovedadesCount = computed(() => {
@@ -423,19 +431,16 @@ async function cargarReportes() {
     if (data && data.reportes) {
       reportes.value = data.reportes;
       totalReportes.value = data.total !== undefined ? data.total : data.reportes.length;
-      if (data.paginacion) {
-        paginacion.value = data.paginacion;
-      } else {
-        const totalP = Math.ceil(totalReportes.value / limit.value) || 1;
-        paginacion.value = {
-          total: totalReportes.value,
-          page: page.value,
-          limit: limit.value,
-          totalPages: totalP,
-          hasNextPage: page.value < totalP,
-          hasPrevPage: page.value > 1
-        };
-      }
+      const totalP = data.totalPaginas || Math.ceil(totalReportes.value / limit.value) || 1;
+      const curPage = data.pagina || page.value || 1;
+      paginacion.value = {
+        total: totalReportes.value,
+        page: curPage,
+        limit: limit.value,
+        totalPages: totalP,
+        hasNextPage: curPage < totalP,
+        hasPrevPage: curPage > 1
+      };
     } else {
       reportes.value = Array.isArray(data) ? data : [];
       totalReportes.value = reportes.value.length;

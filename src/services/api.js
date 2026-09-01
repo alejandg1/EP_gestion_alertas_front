@@ -150,10 +150,38 @@ export const reportesService = {
   async delete(id) {
     const res = await api.delete(`/reportes/${id}`);
     return res.data;
+  }
+};
+
+export const novedadesService = {
+  async getAll(params = null) {
+    const res = await api.get('/novedades', { params });
+    return res.data;
   },
 
-  async exportarExcel(reporteId) {
-    const res = await api.post(`/reportes/${reporteId}/exportar-excel`);
+  async getById(id) {
+    const res = await api.get(`/novedades/${id}`);
+    return res.data?.novedad || res.data;
+  },
+
+  async create(formDataOrJson) {
+    const isFormData = formDataOrJson instanceof FormData;
+    const res = await api.post('/novedades', formDataOrJson, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
+    return res.data?.novedad || res.data;
+  },
+
+  async update(id, formDataOrJson) {
+    const isFormData = formDataOrJson instanceof FormData;
+    const res = await api.put(`/novedades/${id}`, formDataOrJson, {
+      headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
+    return res.data?.novedad || res.data;
+  },
+
+  async delete(id) {
+    const res = await api.delete(`/novedades/${id}`);
     return res.data;
   }
 };

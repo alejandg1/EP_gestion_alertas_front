@@ -13,8 +13,26 @@
       </div>
 
       <div class="nav-right">
+        <!-- Indicador de Colaboradores Conectados en Tiempo Real -->
+        <div v-if="colaboradoresConectados.length > 0" class="collab-presence-bar">
+          <span class="collab-presence-label">
+            <span class="live-dot pulse"></span>
+            <i class="fa-solid fa-users"></i> Colaborando:
+          </span>
+          <div class="collab-chips">
+            <span
+              v-for="c in colaboradoresConectados"
+              :key="c.usuarioId || c.correo"
+              class="collab-chip"
+              :title="c.correo"
+            >
+              {{ c.nombre || c.correo }}
+            </span>
+          </div>
+        </div>
+
         <button
-          v-if="reporte._id && reporte._id !== 'nuevo'"
+          v-if="(reporte._id || reporte.id) && (reporte._id !== 'nuevo' && reporte.id !== 'nuevo')"
           type="button"
           class="btn btn-danger btn-m btn-del-report-nav"
           @click="eliminarReporteActual"
@@ -266,13 +284,21 @@
 
           <div class="form-group">
             <label for="p_titulo">Titulo del Reporte:</label>
-            <input
-              id="p_titulo"
-              type="text"
-              v-model="reporte.titulo"
-              placeholder="Reporte de Novedades e Incidentes"
-              @blur="onFieldBlur('titulo', reporte.titulo)"
-            />
+            <div class="locked-wrapper">
+              <input
+                id="p_titulo"
+                type="text"
+                v-model="reporte.titulo"
+                placeholder="Reporte de Novedades e Incidentes"
+                :disabled="isFieldLocked('titulo')"
+                :class="{ 'field-locked': isFieldLocked('titulo') }"
+                @focus="onFieldFocus('titulo')"
+                @blur="onFieldBlur('titulo', reporte.titulo)"
+              />
+              <span v-if="isFieldLocked('titulo')" class="lock-tag">
+                <i class="fa-solid fa-lock"></i> [En edición por: {{ getLockedBy('titulo') }}]
+              </span>
+            </div>
           </div>
 
           <div class="form-group">
@@ -733,6 +759,7 @@ const exportandoShapefile = ref(false);
 const sincronizandoExcel = ref(false);
 const showModalRegister = ref(false);
 const listaReportes = ref([]);
+const colaboradoresConectados = ref([]);
 
 const hoy = new Date().toISOString().split('T')[0];
 const shpFecha = ref(hoy);
@@ -829,9 +856,10 @@ function getLockedBy(campoKey) {
 function onFieldFocus(campoKey) {
   if (isFieldLocked(campoKey)) return;
   const socket = getSocket();
-  if (socket && socket.connected && reporte._id) {
+  const currentId = reporte._id || reporte.id;
+  if (socket && socket.connected && currentId && currentId !== 'nuevo') {
     socket.emit('lock_campo', {
-      reporteId: reporte._id,
+      reporteId: currentId,
       campoKey,
       usuarioId: usuario.value?.id || usuario.value?._id,
       usuarioNombre: usuario.value?.nombre || usuario.value?.correo
@@ -841,10 +869,11 @@ function onFieldFocus(campoKey) {
 
 function onFieldBlur(campoKey, valor) {
   const socket = getSocket();
-  if (socket && socket.connected && reporte._id) {
-    socket.emit('unlock_campo', { reporteId: reporte._id, campoKey });
+  const currentId = reporte._id || reporte.id;
+  if (socket && socket.connected && currentId && currentId !== 'nuevo') {
+    socket.emit('unlock_campo', { reporteId: currentId, campoKey });
     socket.emit('actualizar_parametros', {
-      reporteId: reporte._id,
+      reporteId: currentId,
       parametros: { [campoKey]: valor }
     });
   }
@@ -1044,7 +1073,8 @@ function cerrarFotoModal() {
 }
 
 async function asegurarReporteCreado() {
-  if (reporte._id && reporte._id !== 'nuevo') return reporte._id;
+  const currentId = reporte._id || reporte.id;
+  if (currentId && currentId !== 'nuevo') return currentId;
 
   const uId = usuario.value?.id || usuario.value?._id || '';
   const uCorreo = usuario.value?.correo || '';
@@ -1067,8 +1097,9 @@ async function asegurarReporteCreado() {
   };
 
   const nuevo = await reportesService.create(dataCreacion);
-  const id = nuevo?._id || nuevo?.reporte?._id;
+  const id = nuevo?.id || nuevo?._id || nuevo?.reporte?.id || nuevo?.reporte?._id;
   reporte._id = id;
+  reporte.id = id;
   router.replace(`/reportes/${id}`);
   setupSockets();
   return id;
@@ -1232,10 +1263,11 @@ async function guardarEdicionNovedad(nov) {
     acciones_inmediatas: nov.acciones_inmediatas || `Notificado a ${nov.instituciones}`
   };
 
-  const id = reporte._id;
-  if (id && id !== 'nuevo' && nov._id) {
+  const id = reporte._id || reporte.id;
+  const novId = nov._id || nov.id;
+  if (id && id !== 'nuevo' && novId) {
     try {
-      const res = await reportesService.updateNovedad(id, nov._id, payload);
+      const res = await reportesService.updateNovedad(id, novId, payload);
       if (res && res.colaboradores) {
         reporte.colaboradores = res.colaboradores;
       }
@@ -1246,7 +1278,7 @@ async function guardarEdicionNovedad(nov) {
       if (socket && socket.connected) {
         socket.emit('actualizar_novedad', {
           reporteId: id,
-          novedadId: nov._id,
+          novedadId: novId,
           cambios: payload
         });
       }
@@ -1292,8 +1324,8 @@ async function eliminarNovedad(nov, index) {
     return;
   }
 
-  const id = reporte._id;
-  const novedadId = nov?._id;
+  const id = reporte._id || reporte.id;
+  const novedadId = nov?._id || nov?.id;
 
   if (id && id !== 'nuevo' && novedadId) {
     try {
@@ -1537,14 +1569,15 @@ async function sincronizarSharePoint() {
 }
 
 async function eliminarReporteActual() {
-  if (!reporte._id || reporte._id === 'nuevo') return;
+  const currentId = reporte._id || reporte.id;
+  if (!currentId || currentId === 'nuevo') return;
 
   const nombreRep = reporte.numero_rds || reporte.titulo || 'este reporte';
   const confirmacion = window.confirm(`¿Está seguro de eliminar el reporte "${nombreRep}"?\n\nEsta acción es irreversible y eliminará todas sus novedades registradas.`);
   if (!confirmacion) return;
 
   try {
-    await reportesService.deleteReporte(reporte._id);
+    await reportesService.deleteReporte(currentId);
     toast.success('Reporte eliminado exitosamente');
     disconnectSocket();
     router.push('/reportes');
@@ -1569,24 +1602,27 @@ function irANuevoReporte() {
 
 // Configurar WebSockets para este Reporte (inicia colaboracion solo al entrar al reporte)
 function setupSockets() {
-  if (!reporte._id || reporte._id === 'nuevo') return;
+  const currentId = reporte._id || reporte.id;
+  if (!currentId || currentId === 'nuevo') return;
 
   const socket = initSocket();
   if (!socket) return;
 
-  socket.emit('unirse_reporte', { reporteId: reporte._id });
+  socket.emit('unirse_reporte', { reporteId: currentId });
 
   socket.on('reporte_cargado', (payload) => {
     const r = payload.reporte;
     if (r) {
       Object.assign(reporte, {
-        _id: r._id,
+        _id: r._id || r.id,
+        id: r.id || r._id,
         titulo: r.titulo,
         numero_rds: r.numero_rds,
-        fecha_reporte: r.fecha_reporte,
+        fecha_reporte: r.fecha_reporte || r.fecha,
         hora_inicio: r.hora_inicio || '06:00',
         hora_fin: r.hora_fin || '22:00',
         revisado_por: r.revisado_por,
+        elaborado_por: r.elaborado_por || '',
         colaboradores: r.colaboradores || [],
         cabecera: r.cabecera,
         periodo: r.periodo,
@@ -1595,19 +1631,38 @@ function setupSockets() {
         inocar_bajamar: r.inocar_bajamar,
         novedades: r.novedades || []
       });
-      if (!formNovedad.fecha) formNovedad.fecha = r.fecha_reporte;
+      if (!formNovedad.fecha) formNovedad.fecha = r.fecha_reporte || r.fecha;
     }
 
     if (payload.locks) {
       Object.keys(fieldLocks).forEach(k => delete fieldLocks[k]);
       Object.assign(fieldLocks, payload.locks);
     }
+
+    if (payload.usuariosActivos) {
+      const myId = usuario.value?.id || usuario.value?._id;
+      const myCorreo = usuario.value?.correo;
+      colaboradoresConectados.value = payload.usuariosActivos.filter(
+        u => (myId && String(u.usuarioId) !== String(myId)) || (!myId && u.correo !== myCorreo)
+      );
+    }
+  });
+
+  socket.on('usuarios_actualizados', (payload) => {
+    if (payload.usuariosActivos) {
+      const myId = usuario.value?.id || usuario.value?._id;
+      const myCorreo = usuario.value?.correo;
+      colaboradoresConectados.value = payload.usuariosActivos.filter(
+        u => (myId && String(u.usuarioId) !== String(myId)) || (!myId && u.correo !== myCorreo)
+      );
+    }
   });
 
   socket.on('novedad_agregada', (payload) => {
     if (payload.novedad) {
+      const novId = payload.novedad._id || payload.novedad.id;
       const existe = reporte.novedades.some(n =>
-        (n._id && payload.novedad._id && String(n._id) === String(payload.novedad._id)) ||
+        ((n._id || n.id) && novId && String(n._id || n.id) === String(novId)) ||
         (n.direccion === payload.novedad.direccion && n.hora === payload.novedad.hora)
       );
       if (!existe) {
@@ -1616,6 +1671,9 @@ function setupSockets() {
     }
     if (payload.colaboradores) {
       reporte.colaboradores = payload.colaboradores;
+    }
+    if (payload.elaborado_por) {
+      reporte.elaborado_por = payload.elaborado_por;
     }
   });
 
@@ -1637,12 +1695,16 @@ function setupSockets() {
     if (payload.colaboradores) {
       reporte.colaboradores = payload.colaboradores;
     }
+    if (payload.elaborado_por) {
+      reporte.elaborado_por = payload.elaborado_por;
+    }
   });
 
   socket.on('novedad_actualizada', (payload) => {
     if (payload.novedad) {
+      const novId = payload.novedad._id || payload.novedad.id;
       const idx = reporte.novedades.findIndex(n =>
-        (n._id && payload.novedad._id && String(n._id) === String(payload.novedad._id))
+        ((n._id || n.id) && novId && String(n._id || n.id) === String(novId))
       );
       if (idx >= 0) {
         Object.assign(reporte.novedades[idx], payload.novedad);
@@ -1659,7 +1721,7 @@ function setupSockets() {
   socket.on('novedad_eliminada', (payload) => {
     if (payload.novedadId) {
       const idx = reporte.novedades.findIndex(n =>
-        (n._id && String(n._id) === String(payload.novedadId))
+        ((n._id || n.id) && String(n._id || n.id) === String(payload.novedadId))
       );
       if (idx >= 0) {
         reporte.novedades.splice(idx, 1);
@@ -1683,7 +1745,7 @@ function setupSockets() {
 async function cargarListaReportes() {
   try {
     const data = await reportesService.getAll();
-    listaReportes.value = Array.isArray(data) ? data : [];
+    listaReportes.value = Array.isArray(data) ? data : (data?.reportes || []);
   } catch (e) {
     console.warn('Error al cargar lista de reportes:', e);
   }
@@ -1691,7 +1753,8 @@ async function cargarListaReportes() {
 
 // Actualizacion automatica al cambiar fecha en modo nuevo reporte
 watch(() => reporte.fecha_reporte, (nuevaFecha) => {
-  if (nuevaFecha && (!reporte._id || reporte._id === 'nuevo')) {
+  const currentId = reporte._id || reporte.id;
+  if (nuevaFecha && (!currentId || currentId === 'nuevo')) {
     const pronostico = calcularPronosticoInocar(nuevaFecha);
     reporte.inocar_fecha = pronostico.fecha;
     reporte.inocar_pleamar = pronostico.pleamar;
@@ -1718,8 +1781,44 @@ async function inicializarVista() {
     try {
       const data = await reportesService.getById(reporteId.value);
       if (data) {
-        Object.assign(reporte, data);
-        formNovedad.fecha = data.fecha_reporte || fechaHoy;
+        Object.assign(reporte, {
+          _id: data.id || data._id,
+          id: data.id || data._id,
+          titulo: data.titulo,
+          numero_rds: data.numero_rds,
+          fecha_reporte: data.fecha_reporte || data.fecha || fechaHoy,
+          hora_inicio: data.hora_inicio || '06:00',
+          hora_fin: data.hora_fin || '22:00',
+          revisado_por: data.revisado_por || '',
+          elaborado_por: data.elaborado_por || '',
+          cabecera: data.cabecera || '',
+          periodo: data.periodo || '',
+          inocar_fecha: data.inocar_fecha || '',
+          inocar_pleamar: data.inocar_pleamar || '',
+          inocar_bajamar: data.inocar_bajamar || '',
+          observaciones_generales: data.observaciones_generales || '',
+          colaboradores: (data.reporte_colaboradores || data.colaboradores || []).map(c => ({
+            usuario_id: c.usuario_id || c.usuario?.id,
+            nombre: c.usuario?.nombre || c.nombre || c.correo,
+            correo: c.usuario?.correo || c.correo,
+            primer_aporte: c.primer_aporte,
+            ultimo_aporte: c.ultimo_aporte,
+            total_ediciones: c.total_ediciones,
+          })),
+          novedades: (data.novedades || []).map(n => ({
+            ...n,
+            _id: n.id || n._id,
+            id: n.id || n._id,
+            tipo_evento: n.tipo_evento || n.tipo,
+            recurso_asignado: n.recurso_asignado || n.recurso,
+            estado_operativo: n.estado_operativo || n.estado,
+            acciones_inmediatas: n.acciones_inmediatas || n.acciones,
+            fecha_evento: n.fecha_evento || (n.fecha ? new Date(n.fecha).toISOString().split('T')[0] : ''),
+            hora_evento: n.hora_evento || (n.fecha ? new Date(n.fecha).toTimeString().split(' ')[0].substring(0, 5) : ''),
+            fotos: (n.fotos || []).map(f => typeof f === 'string' ? f : (f.url_foto || ''))
+          }))
+        });
+        formNovedad.fecha = reporte.fecha_reporte || fechaHoy;
         formNovedad.hora = horaHoy;
       }
       setupSockets();
@@ -1754,7 +1853,7 @@ async function inicializarVista() {
         colaboradores: uCorreo ? [uCorreo] : []
       };
       const nuevo = await reportesService.create(dataCreacion);
-      const idCreado = nuevo?._id || nuevo?.reporte?._id;
+      const idCreado = nuevo?.id || nuevo?._id || nuevo?.reporte?.id || nuevo?.reporte?._id;
       if (idCreado) {
         router.replace(`/reportes/${idCreado}`);
         return;
@@ -2322,27 +2421,95 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
+/* Estilos de Presencia de Colaboradores en Tiempo Real */
+.collab-presence-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(2, 132, 199, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: #e0f2fe;
+}
+
+.collab-presence-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #7dd3fc;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.live-dot.pulse {
+  animation: dotPulse 1.5s infinite;
+}
+
+@keyframes dotPulse {
+  0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.collab-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.collab-chip {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #ffffff;
+  font-size: 0.74rem;
+}
+
 .locked-wrapper {
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .field-locked {
   background-color: #fffbeb !important;
-  border: 1.5px dashed #f59e0b !important;
+  border: 2px dashed #f59e0b !important;
   cursor: not-allowed !important;
-  color: #78716c !important;
+  color: #92400e !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+  transition: all 0.2s ease;
 }
 
 .lock-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.72rem;
   font-weight: 700;
   color: #b45309;
   background: #fef3c7;
   border: 1px solid #fde68a;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
-  margin-top: 3px;
+  margin-top: 4px;
+  animation: lockFadeIn 0.2s ease;
+}
+
+@keyframes lockFadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .novedades-list {
