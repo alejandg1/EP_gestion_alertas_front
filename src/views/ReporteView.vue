@@ -80,14 +80,9 @@
             <div class="form-group">
               <label for="indiv_tipo">Tipo de Evento:</label>
               <select id="indiv_tipo" v-model="formNovedad.tipo" @change="alCambiarTipoManual">
-                <option value="AGUA">Acumulacion de agua</option>
-                <option value="ARBOL">Caida de arbol</option>
-                <option value="DESLIZAMIENTO">Deslizamiento</option>
-                <option value="POSTE">Caida de postes</option>
-                <option value="SINIESTRO">Siniestros de transito</option>
-                <option value="INUNDACION">Inundaciones</option>
-                <option value="VENDAVAL">Vendavales</option>
-                <option value="AFECTACION">Afectacion estructural</option>
+                <option v-for="evt in catalogoEventos" :key="evt.id" :value="evt.id">
+                  {{ evt.label }}
+                </option>
               </select>
             </div>
 
@@ -181,17 +176,9 @@
             <div class="form-group">
               <label for="indiv_recurso">Recurso Asignado Inicial:</label>
               <select id="indiv_recurso" v-model="formNovedad.recurso_asignado">
-                <option value="INS-ALC 🚙">INS-ALC 🚙</option>
-                <option value="HK 🚛">HK 🚛</option>
-                <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
-                <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
-                <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
-                <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
-                <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
-                <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
-                <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
-                <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
-                <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
+                <option v-for="rec in catalogoRecursos" :key="rec.id" :value="rec.value">
+                  {{ rec.label }}
+                </option>
               </select>
             </div>
           </div>
@@ -200,9 +187,9 @@
             <div class="form-group">
               <label for="indiv_estado">Estado Inicial:</label>
               <select id="indiv_estado" v-model="formNovedad.estado_operativo">
-                <option value="⛔PENDIENTE">⛔PENDIENTE</option>
-                <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
-                <option value="✅ATENDIDO">✅ATENDIDO</option>
+                <option v-for="est in estadosDisponibles" :key="est.id" :value="est.value">
+                  {{ est.label }}
+                </option>
               </select>
             </div>
 
@@ -266,239 +253,16 @@
           </div>
         </div>
 
-        <!-- 2. PARAMETROS DEL REPORTE CONSOLIDADO -->
-        <div class="card section-parametros">
-          <div class="card-header-with-actions">
-            <h2>2. Parametros del Reporte Consolidado</h2>
-            <button
-              type="button"
-              class="btn btn-secondary btn-m"
-              @click="guardarParametrosReporte"
-              :disabled="guardandoParametros"
-            >
-              <i v-if="guardandoParametros" class="fa-solid fa-spinner fa-spin"></i>
-              <i v-else class="fa-solid fa-floppy-disk"></i>
-              {{ guardandoParametros ? 'Guardando...' : 'Guardar Parámetros' }}
-            </button>
-          </div>
-
-          <div class="form-group">
-            <label for="p_titulo">Titulo del Reporte:</label>
-            <div class="locked-wrapper">
-              <input
-                id="p_titulo"
-                type="text"
-                v-model="reporte.titulo"
-                placeholder="Reporte de Novedades e Incidentes"
-                :disabled="isFieldLocked('titulo')"
-                :class="{ 'field-locked': isFieldLocked('titulo') }"
-                @focus="onFieldFocus('titulo')"
-                @blur="onFieldBlur('titulo', reporte.titulo)"
-              />
-              <span v-if="isFieldLocked('titulo')" class="lock-tag">
-                <i class="fa-solid fa-lock"></i> [En edición por: {{ getLockedBy('titulo') }}]
-              </span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="p_rds">Numero de Reporte RDS:</label>
-            <div class="locked-wrapper">
-              <input
-                id="p_rds"
-                type="text"
-                v-model="reporte.numero_rds"
-                :disabled="isFieldLocked('numero_rds')"
-                :class="{ 'field-locked': isFieldLocked('numero_rds') }"
-                @focus="onFieldFocus('numero_rds')"
-                @blur="onFieldBlur('numero_rds', reporte.numero_rds)"
-              />
-              <span v-if="isFieldLocked('numero_rds')" class="lock-tag">
-                [En edicion por: {{ getLockedBy('numero_rds') }}]
-              </span>
-            </div>
-          </div>
-
-          <div class="grid-3">
-            <div class="form-group">
-              <label for="p_fecha">Fecha del Reporte:</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_fecha"
-                  type="date"
-                  v-model="reporte.fecha_reporte"
-                  :disabled="isFieldLocked('fecha_reporte')"
-                  :class="{ 'field-locked': isFieldLocked('fecha_reporte') }"
-                  @focus="onFieldFocus('fecha_reporte')"
-                  @blur="onFieldBlur('fecha_reporte', reporte.fecha_reporte)"
-                />
-                <span v-if="isFieldLocked('fecha_reporte')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('fecha_reporte') }}]
-                </span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="p_inicio">Hora Inicial:</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_inicio"
-                  type="time"
-                  v-model="reporte.hora_inicio"
-                  :disabled="isFieldLocked('hora_inicio')"
-                  :class="{ 'field-locked': isFieldLocked('hora_inicio') }"
-                  @focus="onFieldFocus('hora_inicio')"
-                  @blur="onFieldBlur('hora_inicio', reporte.hora_inicio)"
-                />
-                <span v-if="isFieldLocked('hora_inicio')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('hora_inicio') }}]
-                </span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="p_fin">Hora de Corte:</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_fin"
-                  type="time"
-                  v-model="reporte.hora_fin"
-                  :disabled="isFieldLocked('hora_fin')"
-                  :class="{ 'field-locked': isFieldLocked('hora_fin') }"
-                  @focus="onFieldFocus('hora_fin')"
-                  @blur="onFieldBlur('hora_fin', reporte.hora_fin)"
-                />
-                <span v-if="isFieldLocked('hora_fin')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('hora_fin') }}]
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="form-group">
-              <label for="p_elaborado">Elaborado por:</label>
-              <input
-                id="p_elaborado"
-                type="text"
-                :value="elaboradoPorTexto"
-                readonly
-                placeholder="Se actualiza automaticamente con los colaboradores"
-                class="input-readonly"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="p_revisado">Revisado por:</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_revisado"
-                  type="text"
-                  v-model="reporte.revisado_por"
-                  :disabled="isFieldLocked('revisado_por')"
-                  :class="{ 'field-locked': isFieldLocked('revisado_por') }"
-                  @focus="onFieldFocus('revisado_por')"
-                  @blur="onFieldBlur('revisado_por', reporte.revisado_por)"
-                />
-                <span v-if="isFieldLocked('revisado_por')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('revisado_por') }}]
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="p_cabecera">Encabezado y Hora Inicial:</label>
-            <div class="locked-wrapper">
-              <input
-                id="p_cabecera"
-                type="text"
-                v-model="reporte.cabecera"
-                :disabled="isFieldLocked('cabecera')"
-                :class="{ 'field-locked': isFieldLocked('cabecera') }"
-                @focus="onFieldFocus('cabecera')"
-                @blur="onFieldBlur('cabecera', reporte.cabecera)"
-              />
-              <span v-if="isFieldLocked('cabecera')" class="lock-tag">
-                [En edicion por: {{ getLockedBy('cabecera') }}]
-              </span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="p_periodo">Periodo del Reporte:</label>
-            <div class="locked-wrapper">
-              <input
-                id="p_periodo"
-                type="text"
-                v-model="reporte.periodo"
-                :disabled="isFieldLocked('periodo')"
-                :class="{ 'field-locked': isFieldLocked('periodo') }"
-                @focus="onFieldFocus('periodo')"
-                @blur="onFieldBlur('periodo', reporte.periodo)"
-              />
-              <span v-if="isFieldLocked('periodo')" class="lock-tag">
-                [En edicion por: {{ getLockedBy('periodo') }}]
-              </span>
-            </div>
-          </div>
-
-          <div class="grid-3">
-            <div class="form-group">
-              <label for="p_inocar_f">Fecha INOCAR:</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_inocar_f"
-                  type="text"
-                  v-model="reporte.inocar_fecha"
-                  :disabled="isFieldLocked('inocar_fecha')"
-                  :class="{ 'field-locked': isFieldLocked('inocar_fecha') }"
-                  @focus="onFieldFocus('inocar_fecha')"
-                  @blur="onFieldBlur('inocar_fecha', reporte.inocar_fecha)"
-                />
-                <span v-if="isFieldLocked('inocar_fecha')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('inocar_fecha') }}]
-                </span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="p_pleamar">Pleamar (Marea Alta):</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_pleamar"
-                  type="text"
-                  v-model="reporte.inocar_pleamar"
-                  :disabled="isFieldLocked('inocar_pleamar')"
-                  :class="{ 'field-locked': isFieldLocked('inocar_pleamar') }"
-                  @focus="onFieldFocus('inocar_pleamar')"
-                  @blur="onFieldBlur('inocar_pleamar', reporte.inocar_pleamar)"
-                />
-                <span v-if="isFieldLocked('inocar_pleamar')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('inocar_pleamar') }}]
-                </span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="p_bajamar">Bajamar (Marea Baja):</label>
-              <div class="locked-wrapper">
-                <input
-                  id="p_bajamar"
-                  type="text"
-                  v-model="reporte.inocar_bajamar"
-                  :disabled="isFieldLocked('inocar_bajamar')"
-                  :class="{ 'field-locked': isFieldLocked('inocar_bajamar') }"
-                  @focus="onFieldFocus('inocar_bajamar')"
-                  @blur="onFieldBlur('inocar_bajamar', reporte.inocar_bajamar)"
-                />
-                <span v-if="isFieldLocked('inocar_bajamar')" class="lock-tag">
-                  [En edicion por: {{ getLockedBy('inocar_bajamar') }}]
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <!-- 2. PARAMETROS DEL REPORTE CONSOLIDADO (MODULAR POR EPOCA) -->
+        <ParametrosLluviosa
+          v-model="reporte"
+          :guardando="guardandoParametros"
+          :bloqueos="fieldLocks"
+          @guardar="guardarParametrosReporte"
+          @field-focus="onFieldFocus"
+          @field-blur="onFieldBlur"
+          @recalcular-inocar="recalcularInocarManual"
+        />
       </div>
 
       <!-- COLUMNA DERECHA: 3. Novedades Consolidadas, 4. Reporte Oficial, 5. Mapa -->
@@ -516,96 +280,55 @@
           <div v-else class="novedades-list">
             <div
               v-for="(nov, idx) in reporte.novedades"
-              :key="nov._id || idx"
-              class="novedad-item-card"
+              :key="nov._id || nov.id || idx"
+              class="novedad-card-summary"
             >
-              <div class="item-header">
-                <span>#{{ idx + 1 }}
-                  <select
-                    v-model="nov.tipo_evento"
-                    @change="onNovedadTipoChange(nov)"
-                    style="width:auto; display:inline-block; margin-left: 5px;"
+              <div class="nov-summary-header">
+                <div class="nov-badge-group">
+                  <span class="nov-index">#{{ idx + 1 }}</span>
+                  <span class="nov-tipo-badge" :style="{ borderColor: getEstiloTipo(nov.tipo_evento || nov.tipo).color, color: getEstiloTipo(nov.tipo_evento || nov.tipo).color }">
+                    <i :class="getIconoTipo(nov.tipo_evento || nov.tipo)"></i>
+                    {{ getNombreTipo(nov.tipo_evento || nov.tipo) }}
+                  </span>
+                  <span class="nov-estado-badge" :class="normalizarClaseEstado(nov.estado_operativo || nov.estado)">
+                    {{ obtenerTextoLimpioEstado(nov.estado_operativo || nov.estado) }}
+                  </span>
+                </div>
+                
+                <div class="nov-card-actions">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-edit-nov"
+                    @click="abrirModalEditar(nov, idx)"
+                    title="Editar detalles de la novedad"
                   >
-                    <option value="AGUA">🚰 Vía anegada / Acumulación de agua</option>
-                    <option value="ARBOL">🌳 Caída de árbol</option>
-                    <option value="DESLIZAMIENTO">⛰️ Deslizamiento / Socavón</option>
-                    <option value="POSTE">⚡ Caída de postes</option>
-                    <option value="SINIESTRO">🚗 Siniestros de tránsito</option>
-                    <option value="INUNDACION">🌊 Inundaciones</option>
-                    <option value="VENDAVAL">💨 Vendavales</option>
-                    <option value="AFECTACION">🏚️ Afectación estructural</option>
-                  </select>
-                </span>
-                <button
-                  type="button"
-                  class="btn btn-danger btn-xs"
-                  @click="eliminarNovedad(nov, idx)"
-                  title="Eliminar novedad"
-                >
-                  ✕ Eliminar
-                </button>
+                    <i class="fa-solid fa-pen-to-square"></i> Editar
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-del-nov"
+                    @click="eliminarNovedad(nov, idx)"
+                    title="Eliminar novedad"
+                  >
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
               </div>
 
-              <input
-                type="text"
-                v-model="nov.direccion"
-                @blur="guardarEdicionNovedad(nov)"
-              />
-
-              <div class="grid-novedad-meta" style="margin-top:6px;">
-                <input
-                  type="date"
-                  aria-label="Fecha del evento"
-                  v-model="nov.fecha_evento"
-                  @blur="guardarEdicionNovedad(nov)"
-                />
-                <input
-                  type="text"
-                  aria-label="AGA"
-                  v-model="nov.aga"
-                  title="AGA vinculada a las coordenadas WGS84; puede corregirse manualmente"
-                  @blur="guardarEdicionNovedad(nov)"
-                />
-                <input
-                  type="time"
-                  aria-label="Hora del evento"
-                  v-model="nov.hora_evento"
-                  @blur="guardarEdicionNovedad(nov)"
-                />
-                <input
-                  type="text"
-                  aria-label="Coordenadas"
-                  title="Latitud, longitud"
-                  :value="nov.coordTexto !== undefined ? nov.coordTexto : obtenerCoordsTexto(nov)"
-                  @input="onInputCoordsNovedad(nov, $event.target.value)"
-                  @blur="guardarEdicionNovedad(nov)"
-                  placeholder="-2.1894, -79.8891"
-                />
+              <div class="nov-summary-body" @click="abrirModalEditar(nov, idx)">
+                <h4 class="nov-direccion">{{ nov.direccion || 'Sin dirección registrada' }}</h4>
+                <div class="nov-meta-chips">
+                  <span class="meta-chip chip-aga"><i class="fa-solid fa-map-pin"></i> {{ nov.aga || 'A09' }}</span>
+                  <span class="meta-chip"><i class="fa-regular fa-clock"></i> {{ nov.hora_evento || nov.hora || '00:00' }}</span>
+                  <span class="meta-chip chip-coords"><i class="fa-solid fa-location-dot"></i> {{ obtenerCoordsTexto(nov) }}</span>
+                  <span class="meta-chip chip-recurso"><i class="fa-solid fa-truck"></i> {{ obtenerNombreRecursoLimpio(nov.recurso_asignado || nov.recurso) }}</span>
+                </div>
+                <p v-if="nov.descripcion || nov.acciones_inmediatas" class="nov-desc-preview">
+                  {{ nov.descripcion || nov.acciones_inmediatas }}
+                </p>
               </div>
 
-              <div class="grid-2" style="margin-top:6px;">
-                <select v-model="nov.recurso_asignado" @change="guardarEdicionNovedad(nov)">
-                  <option value="INS-ALC 🚙">INS-ALC 🚙</option>
-                  <option value="HK 🚛">HK 🚛</option>
-                  <option value="CAMIONETA-OP-CN 🚙">CAMIONETA-OP-CN 🚙</option>
-                  <option value="MAQUINARIA OBRAS PÚBLICAS 🚜">MAQUINARIA OBRAS PÚBLICAS 🚜</option>
-                  <option value="EQUIPO GESTIÓN DE RIESGOS 🦺">EQUIPO GESTIÓN DE RIESGOS 🦺</option>
-                  <option value="CUADRILLA PARQUES 🌳">CUADRILLA PARQUES 🌳</option>
-                  <option value="MAQUINARIA PARQUES 🚜">MAQUINARIA PARQUES 🚜</option>
-                  <option value="PATRULLAS ATM 🚓">PATRULLAS ATM 🚓</option>
-                  <option value="ASEO CANTONAL - URVASEO 🚛">ASEO CANTONAL - URVASEO 🚛</option>
-                  <option value="INSPECTOR URVASEO 🚙">INSPECTOR URVASEO 🚙</option>
-                  <option value="CUADRILLA URVASEO 👷">CUADRILLA URVASEO 👷</option>
-                </select>
-
-                <select v-model="nov.estado_operativo" @change="guardarEdicionNovedad(nov)">
-                  <option value="⛔PENDIENTE">⛔PENDIENTE</option>
-                  <option value="🔄EN ATENCIÓN">🔄EN ATENCIÓN</option>
-                  <option value="✅ATENDIDO">✅ATENDIDO</option>
-                </select>
-              </div>
-
-              <div v-if="nov.fotos && nov.fotos.length" class="item-photos" style="margin-top:8px;">
+              <div v-if="nov.fotos && nov.fotos.length" class="item-photos">
                 <div
                   v-for="(f, fIdx) in nov.fotos"
                   :key="fIdx"
@@ -690,12 +413,24 @@
             </button>
           </div>
 
-          <MapLeaflet :novedades="reporte.novedades || []" />
+          <MapLeaflet
+            :novedades="reporte.novedades || []"
+            @capturar-frame="manejarFrameCapturado"
+          />
         </div>
       </div>
     </div>
 
     <ModalRegister v-model="showModalRegister" />
+
+    <!-- Modal de Edición Integral de Novedad -->
+    <ModalEditarNovedad
+      v-model="showModalEditarNovedad"
+      :novedad="novedadAEditar"
+      :index="novedadIndexAEditar"
+      :guardando="guardandoEdicionModal"
+      @guardar="onGuardarEdicionModal"
+    />
 
     <!-- Modal Visor de Fotografia Ampliada (Lightbox) -->
     <div v-if="fotoModalUrl" class="lightbox-backdrop" @click="cerrarFotoModal">
@@ -743,10 +478,22 @@ import {
 } from '../services/timeAndTides.js';
 import MapLeaflet from '../components/MapLeaflet.vue';
 import ModalRegister from '../components/ModalRegister.vue';
+import ModalEditarNovedad from '../components/common/ModalEditarNovedad.vue';
+import ParametrosLluviosa from '../components/epocas/ParametrosLluviosa.vue';
+import { CATALOGO_EVENTOS, ESTADOS_NOVEDAD, CATALOGO_RECURSOS, getEventosPorEpoca } from '../config/epocas.js';
 import { toast } from '../services/toast.js';
 
 const route = useRoute();
 const router = useRouter();
+
+const catalogoEventos = computed(() => getEventosPorEpoca());
+const catalogoRecursos = CATALOGO_RECURSOS;
+const estadosDisponibles = ESTADOS_NOVEDAD;
+
+const showModalEditarNovedad = ref(false);
+const novedadAEditar = ref(null);
+const novedadIndexAEditar = ref(0);
+const guardandoEdicionModal = ref(false);
 
 const reporteId = computed(() => route.params.id || 'nuevo');
 const usuario = computed(() => authService.getUsuarioSesion());
@@ -1054,12 +801,14 @@ const fotoModalUrl = ref('');
 
 function resolverUrlFoto(foto) {
   if (!foto) return '';
-  const url = typeof foto === 'string' ? foto : (foto.url || foto.previewUrl || foto.path || '');
+  const url = typeof foto === 'string' ? foto : (foto.url_foto || foto.url || foto.previewUrl || foto.path || '');
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('data:')) {
     return url;
   }
-  const baseUrl = (import.meta.env.VITE_API_URL || 'http://10.10.80.70:3090').replace(/\/+$/, '');
+  const apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+  const defaultHost = (typeof window !== 'undefined' && window.location.hostname === 'localhost') ? 'http://localhost:3090' : 'http://10.10.80.70:3090';
+  const baseUrl = apiBase || defaultHost;
   const cleanPath = url.startsWith('/') ? url : `/${url}`;
   return `${baseUrl}${cleanPath}`;
 }
@@ -1231,6 +980,160 @@ async function registrarYConsolidar() {
   }
 }
 
+function abrirModalEditar(nov, idx) {
+  novedadAEditar.value = nov;
+  novedadIndexAEditar.value = idx;
+  showModalEditarNovedad.value = true;
+}
+
+function getIconoTipo(tipo) {
+  const match = CATALOGO_EVENTOS.find(e => e.id === tipo);
+  return match ? 'fa-solid ' + match.icon : 'fa-solid fa-circle-exclamation';
+}
+
+function getNombreTipo(tipo) {
+  const match = CATALOGO_EVENTOS.find(e => e.id === tipo);
+  return match ? match.label : (textoEventoIndividual[tipo] || tipo);
+}
+
+function getEstiloTipo(tipo) {
+  const match = CATALOGO_EVENTOS.find(e => e.id === tipo);
+  return match || { color: '#0284c7', bg: '#e0f2fe' };
+}
+
+function normalizarClaseEstado(est) {
+  if (!est) return 'estado-pendiente';
+  const u = String(est).toUpperCase();
+  if (u.includes('SITIO')) return 'estado-sitio';
+  if (u.includes('ATENDIDO') || u.includes('SOLUCIONADO')) return 'estado-solucionado';
+  if (u.includes('ATENCION') || u.includes('ATENCIÓN')) return 'estado-atencion';
+  return 'estado-pendiente';
+}
+
+function obtenerTextoLimpioEstado(est) {
+  if (!est) return 'PENDIENTE';
+  const match = ESTADOS_NOVEDAD.find(e => e.value === est || e.id === est);
+  if (match) return match.label;
+  return String(est).replace(/^[^\w\s]+/, '').trim();
+}
+
+function obtenerNombreRecursoLimpio(rec) {
+  if (!rec) return 'INS-ALC';
+  const match = CATALOGO_RECURSOS.find(r => r.value === rec || r.id === rec);
+  if (match) return match.label.split('(')[0].trim();
+  return String(rec).replace(/[^\w\s\-().áéíóúÁÉÍÓÚñÑ]/gu, '').trim();
+}
+
+async function onGuardarEdicionModal({ novedad, nuevasFotos }) {
+  const id = reporte._id || reporte.id;
+  const novId = novedad.id || novedad._id;
+  if (!novId) return;
+
+  guardandoEdicionModal.value = true;
+  try {
+    let fotosFinales = Array.isArray(novedad.fotos) ? [...novedad.fotos] : [];
+
+    // Subir nuevas fotos si se adjuntaron en el modal
+    if (nuevasFotos && nuevasFotos.length > 0) {
+      const fd = new FormData();
+      nuevasFotos.forEach(f => fd.append('fotos', f));
+      const resFotos = await reportesService.uploadFotos(fd);
+      if (resFotos && (resFotos.fotos || resFotos.urls)) {
+        const subidas = resFotos.fotos || resFotos.urls;
+        fotosFinales = [...fotosFinales, ...subidas];
+      }
+    }
+
+    const payload = {
+      tipo_evento: novedad.tipo_evento || 'AGUA',
+      tipo: novedad.tipo_evento || 'AGUA',
+      direccion: normalizarDescripcionNLP(novedad.direccion || ''),
+      aga: novedad.aga || 'A09',
+      instituciones: novedad.instituciones || '@Segura_EP',
+      fecha_evento: novedad.fecha_evento || reporte.fecha_reporte || hoy,
+      fecha: novedad.fecha_evento || reporte.fecha_reporte || hoy,
+      hora_evento: novedad.hora_evento || '00:00',
+      hora: novedad.hora_evento || '00:00',
+      latitud: novedad.latitud !== null && novedad.latitud !== undefined ? Number(novedad.latitud) : -2.1894,
+      longitud: novedad.longitud !== null && novedad.longitud !== undefined ? Number(novedad.longitud) : -79.8891,
+      recurso_asignado: novedad.recurso_asignado || 'INS-ALC 🚙',
+      recurso: novedad.recurso_asignado || 'INS-ALC 🚙',
+      estado_operativo: novedad.estado_operativo || '⛔PENDIENTE',
+      estado: novedad.estado_operativo || '⛔PENDIENTE',
+      hora_sitio: novedad.hora_sitio || '',
+      solucionado: novedad.solucionado || '',
+      fotos: fotosFinales,
+      recursos_instituciones: novedad.recursos_instituciones || {},
+      personal_instituciones: novedad.personal_instituciones || {},
+      descripcion: novedad.descripcion || `${textoEventoIndividual[novedad.tipo_evento] || novedad.tipo_evento} en ${novedad.direccion}`,
+      acciones_inmediatas: novedad.acciones_inmediatas || `Notificado a ${novedad.instituciones}`,
+      datos_adicionales: {
+        recursos: novedad.recursos_instituciones || {},
+        personal: novedad.personal_instituciones || {},
+        ficha: novedad.ficha || '',
+        camara_cvvc: novedad.camara_cvvc || '',
+        afectaciones: novedad.afectaciones || {}
+      }
+    };
+
+    const res = await reportesService.updateNovedad(id, novId, payload);
+    if (res && res.colaboradores) {
+      reporte.colaboradores = res.colaboradores;
+    }
+    if (res && res.elaborado_por) {
+      reporte.elaborado_por = res.elaborado_por;
+    }
+
+    // Actualizar en el array reactivo local con los datos calculados por el backend
+    const index = reporte.novedades.findIndex(n => (n.id === novId || n._id === novId));
+    if (index !== -1) {
+      const novActualizada = res?.novedad || payload;
+      reporte.novedades[index] = {
+        ...reporte.novedades[index],
+        ...novActualizada,
+        fotos: (novActualizada.fotos && novActualizada.fotos.length) ? novActualizada.fotos : fotosFinales,
+        recursos_instituciones: novedad.recursos_instituciones || {},
+        personal_instituciones: novedad.personal_instituciones || {},
+        datos_adicionales: {
+          ...(reporte.novedades[index].datos_adicionales || {}),
+          ...(novActualizada.datos_adicionales || {}),
+          recursos: novedad.recursos_instituciones || {},
+          personal: novedad.personal_instituciones || {},
+          ficha: novedad.ficha || '',
+          camara_cvvc: novedad.camara_cvvc || '',
+          afectaciones: novedad.afectaciones || {}
+        },
+        estado_operativo: novActualizada.estado || novActualizada.estado_operativo,
+        recurso_asignado: novActualizada.recurso || novActualizada.recurso_asignado,
+        hora_sitio: novActualizada.hora_sitio,
+        tiempo_respuesta: novActualizada.tiempo_respuesta,
+        solucionado: novActualizada.solucionado,
+        tiempo_atencion: novActualizada.tiempo_atencion,
+        id: novId,
+        _id: novId
+      };
+    }
+
+    // Emitir evento por WebSocket
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('actualizar_novedad', {
+        reporteId: id,
+        novedadId: novId,
+        cambios: res?.novedad || payload
+      });
+    }
+
+    toast.success('Novedad actualizada correctamente.');
+    showModalEditarNovedad.value = false;
+  } catch (err) {
+    console.error('Error al actualizar novedad:', err);
+    toast.error('Error al actualizar novedad: ' + (err.response?.data?.error || err.message));
+  } finally {
+    guardandoEdicionModal.value = false;
+  }
+}
+
 async function guardarEdicionNovedad(nov) {
   if (!nov) return;
   if (!nov.tipo_evento && nov.tipo) nov.tipo_evento = nov.tipo;
@@ -1258,9 +1161,12 @@ async function guardarEdicionNovedad(nov) {
     longitud: lng,
     recurso_asignado: nov.recurso_asignado || 'INS-ALC 🚙',
     estado_operativo: nov.estado_operativo || '⛔PENDIENTE',
+    hora_sitio: nov.hora_sitio || '',
+    solucionado: nov.solucionado || '',
     fotos: Array.isArray(nov.fotos) ? nov.fotos : [],
     descripcion: nov.descripcion || `${textoEventoIndividual[nov.tipo_evento] || nov.tipo_evento} en ${nov.direccion}`,
-    acciones_inmediatas: nov.acciones_inmediatas || `Notificado a ${nov.instituciones}`
+    acciones_inmediatas: nov.acciones_inmediatas || `Notificado a ${nov.instituciones}`,
+    datos_adicionales: nov.datos_adicionales || {}
   };
 
   const id = reporte._id || reporte.id;
@@ -1274,12 +1180,23 @@ async function guardarEdicionNovedad(nov) {
       if (res && res.elaborado_por) {
         reporte.elaborado_por = res.elaborado_por;
       }
+      if (res && res.novedad) {
+        Object.assign(nov, {
+          ...res.novedad,
+          estado_operativo: res.novedad.estado || nov.estado_operativo,
+          recurso_asignado: res.novedad.recurso || nov.recurso_asignado,
+          hora_sitio: res.novedad.hora_sitio,
+          tiempo_respuesta: res.novedad.tiempo_respuesta,
+          solucionado: res.novedad.solucionado,
+          tiempo_atencion: res.novedad.tiempo_atencion,
+        });
+      }
       const socket = getSocket();
       if (socket && socket.connected) {
         socket.emit('actualizar_novedad', {
           reporteId: id,
           novedadId: novId,
-          cambios: payload
+          cambios: res?.novedad || payload
         });
       }
       toast.success('Novedad actualizada correctamente.');
@@ -1287,14 +1204,6 @@ async function guardarEdicionNovedad(nov) {
       toast.error('Error al actualizar novedad: ' + (err.response?.data?.error || err.message));
     }
   }
-}
-
-function onNovedadTipoChange(nov) {
-  nov.tipo = nov.tipo_evento;
-  if (!nov.instituciones || nov.instituciones === '@emapagye @interagua' || nov.instituciones.startsWith('@')) {
-    nov.instituciones = institucionesPorTipo[nov.tipo_evento] || '@Segura_EP';
-  }
-  guardarEdicionNovedad(nov);
 }
 
 function obtenerCoordsTexto(nov) {
@@ -1387,6 +1296,61 @@ async function subirFotoDirectaANovedad(nov, event) {
   }
 }
 
+async function manejarFrameCapturado({ camara, file, novedad }) {
+  if (!file) return;
+
+  // 1. Identificar la novedad EXACTA conectada a esta cámara
+  let novDestino = null;
+  const listaNovedades = reporte.novedades || [];
+
+  // Buscar por ID si está disponible
+  const novIdBuscado = novedad?.id || camara?.novedad_id || camara?.novedad_asociada?.id;
+  if (novIdBuscado && listaNovedades.length > 0) {
+    novDestino = listaNovedades.find(n => String(n.id) === String(novIdBuscado));
+  }
+
+  // Si no se encontró por ID, buscar la novedad conectada por menor distancia a la cámara
+  if (!novDestino && listaNovedades.length > 0 && camara?.latitud && camara?.longitud) {
+    let minDist = Infinity;
+    for (const nov of listaNovedades) {
+      const lat = nov.latitud !== undefined ? nov.latitud : (nov.coordenadas ? nov.coordenadas.lat : null);
+      const lng = nov.longitud !== undefined ? nov.longitud : (nov.coordenadas ? nov.coordenadas.lng : null);
+      if (lat !== null && lng !== null) {
+        const d = Math.hypot(Number(lat) - Number(camara.latitud), Number(lng) - Number(camara.longitud));
+        if (d < minDist) {
+          minDist = d;
+          novDestino = nov;
+        }
+      }
+    }
+  }
+
+  if (!novDestino) {
+    toast.warning('No se encontró la novedad asociada a esta cámara en el reporte.');
+    return;
+  }
+
+  // 2. Comprobar cupo en la novedad (máximo 2 fotos)
+  if ((novDestino.fotos?.length || 0) >= 2) {
+    toast.warning(`La novedad vinculada (${novDestino.direccion || 'Evento'}) ya tiene 2 fotos. Elimine una para añadir el fotograma.`);
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('fotos', file);
+
+  try {
+    const uploadRes = await reportesService.uploadFotos(formData);
+    const subidas = uploadRes.fotos || [];
+    if (!Array.isArray(novDestino.fotos)) novDestino.fotos = [];
+    novDestino.fotos = novDestino.fotos.concat(subidas);
+    await guardarEdicionNovedad(novDestino);
+    toast.success(`Fotograma asignado a la novedad: ${novDestino.direccion || '#' + novDestino.id}`);
+  } catch (err) {
+    toast.error('Error al guardar fotograma en la novedad: ' + err.message);
+  }
+}
+
 function formatearRecursoConEmoji(rec) {
   if (!rec) return 'INS-ALC 🚙';
   if (/[🚙🚛🚜🦺🌳🚓👷]/.test(rec)) return rec;
@@ -1410,9 +1374,10 @@ function formatearRecursoConEmoji(rec) {
 
 function formatearEstadoConEmoji(est) {
   if (!est) return '⛔PENDIENTE';
-  if (/[⛔🔄✅]/.test(est)) return est;
+  if (/[⛔🔄📍✅]/.test(est)) return est;
   const upper = String(est).toUpperCase();
-  if (upper.includes('ATENDIDO')) return '✅ATENDIDO';
+  if (upper.includes('SITIO')) return '📍EN SITIO';
+  if (upper.includes('ATENDIDO') || upper.includes('SOLUCIONADO')) return '✅ATENDIDO';
   if (upper.includes('ATENCION') || upper.includes('ATENCIÓN')) return '🔄EN ATENCIÓN';
   return '⛔PENDIENTE';
 }
@@ -1765,6 +1730,17 @@ watch(() => reporte.fecha_reporte, (nuevaFecha) => {
   }
 });
 
+function recalcularInocarManual() {
+  if (reporte.fecha_reporte) {
+    const pronostico = calcularPronosticoInocar(reporte.fecha_reporte);
+    reporte.inocar_fecha = pronostico.fecha;
+    reporte.inocar_pleamar = pronostico.pleamar;
+    reporte.inocar_bajamar = pronostico.bajamar;
+    toast.info('Pronóstico de mareas INOCAR recalculado');
+  }
+}
+
+
 watch(() => reporte.novedades?.length, () => {
   generarAlertaInmediata();
 });
@@ -1815,7 +1791,11 @@ async function inicializarVista() {
             acciones_inmediatas: n.acciones_inmediatas || n.acciones,
             fecha_evento: n.fecha_evento || (n.fecha ? new Date(n.fecha).toISOString().split('T')[0] : ''),
             hora_evento: n.hora_evento || (n.fecha ? new Date(n.fecha).toTimeString().split(' ')[0].substring(0, 5) : ''),
-            fotos: (n.fotos || []).map(f => typeof f === 'string' ? f : (f.url_foto || ''))
+            fotos: (Array.isArray(n.fotos) ? n.fotos : (n.datos_adicionales?.fotos || [])).map(f => {
+              if (!f) return '';
+              if (typeof f === 'string') return f;
+              return f.url_foto || f.url || f.previewUrl || f.path || '';
+            }).filter(Boolean)
           }))
         });
         formNovedad.fecha = reporte.fecha_reporte || fechaHoy;
@@ -2529,68 +2509,190 @@ onBeforeUnmount(() => {
   padding: 10px 12px;
 }
 
-.item-header {
+/* Tarjetas Modernas de Novedad Resumen */
+.novedad-card-summary {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.18s ease;
+  position: relative;
+}
+
+.novedad-card-summary:hover {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.nov-summary-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.item-index {
-  background: #0a3d62;
+.nov-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nov-index {
+  background: var(--primary-navy);
   color: #ffffff;
-  padding: 2px 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 2px 7px;
   border-radius: 4px;
-  font-size: 0.72rem;
 }
 
-.item-tipo {
-  color: #0369a1;
-  text-transform: uppercase;
-}
-
-.item-aga {
-  color: #475569;
-  background: #e2e8f0;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-}
-
-.item-hora {
-  margin-left: auto;
-  color: #64748b;
-}
-
-.item-dir {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 8px 0;
-}
-
-.item-meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.meta-field label {
-  font-size: 0.72rem;
+.nov-tipo-badge {
+  font-size: 0.74rem;
   font-weight: 700;
-  color: #64748b;
-  display: block;
-  margin-bottom: 2px;
+  border: 1px solid #bae6fd;
+  background: #f8fafc;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.meta-field select {
-  width: 100%;
-  padding: 4px 6px;
-  font-size: 0.8rem;
-  border: 1px solid #cbd5e1;
+.nov-estado-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nov-estado-badge.estado-pendiente {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.nov-estado-badge.estado-atencion {
+  background: #fef3c7;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.nov-estado-badge.estado-sitio {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+.nov-estado-badge.estado-solucionado {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}
+
+.nov-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-edit-nov {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.btn-edit-nov:hover {
+  background: #0284c7;
+  color: #ffffff;
+}
+
+.btn-del-nov {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-del-nov:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.nov-summary-body {
+  cursor: pointer;
+}
+
+.nov-direccion {
+  margin: 0 0 6px 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--primary-navy);
+  line-height: 1.3;
+}
+
+.nov-meta-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.meta-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #f1f5f9;
+  padding: 2px 7px;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chip-aga {
+  background: #ede9fe;
+  color: #6d28d9;
+  font-weight: 700;
+}
+
+.chip-coords {
+  font-family: monospace;
+  font-size: 0.7rem;
+}
+
+.chip-recurso {
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 600;
+}
+
+.nov-desc-preview {
+  margin: 4px 0 0 0;
+  font-size: 0.76rem;
+  color: var(--text-faint);
+  line-height: 1.35;
 }
 
 .item-photos {

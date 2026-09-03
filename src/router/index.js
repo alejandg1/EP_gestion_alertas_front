@@ -3,6 +3,7 @@ import { authService } from '../services/api.js';
 import HomeView from '../views/HomeView.vue';
 import LoginView from '../views/LoginView.vue';
 import ReporteView from '../views/ReporteView.vue';
+import UsuariosView from '../views/UsuariosView.vue';
 
 const routes = [
   {
@@ -16,6 +17,12 @@ const routes = [
     name: 'Login',
     component: LoginView,
     meta: { guestOnly: true }
+  },
+  {
+    path: '/usuarios',
+    name: 'Usuarios',
+    component: UsuariosView,
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/reportes/nuevo',
@@ -42,10 +49,13 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const isAuth = authService.isAuthenticated();
+  const user = authService.getUsuarioSesion();
 
   if (to.meta.requiresAuth && !isAuth) {
     next('/login');
   } else if (to.meta.guestOnly && isAuth) {
+    next('/');
+  } else if (to.meta.requiresAdmin && user?.rol !== 'admin') {
     next('/');
   } else {
     next();

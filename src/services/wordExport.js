@@ -177,8 +177,14 @@ function resumenCategoriaWord(tipo, novedades) {
   const total = items.length;
   if (total === 0) return "Ninguno";
 
-  const atendidos = items.filter(item => (item.estado_operativo || item.estado || "").includes("ATENDIDO")).length;
-  const enProceso = items.filter(item => (item.estado_operativo || item.estado || "").includes("ATENCIÓN") || (item.estado_operativo || item.estado || "").includes("ATENCION")).length;
+  const atendidos = items.filter(item => {
+    const e = (item.estado_operativo || item.estado || "").toUpperCase();
+    return e.includes("ATENDIDO") || e.includes("SOLUCIONADO");
+  }).length;
+  const enProceso = items.filter(item => {
+    const e = (item.estado_operativo || item.estado || "").toUpperCase();
+    return e.includes("ATENCIÓN") || e.includes("ATENCION") || e.includes("SITIO");
+  }).length;
   const pendientes = total - atendidos - enProceso;
   const numero = String(total).padStart(2, "0");
 

@@ -150,12 +150,22 @@ export const reportesService = {
   async delete(id) {
     const res = await api.delete(`/reportes/${id}`);
     return res.data;
+  },
+
+  async getMetricasTiempos(id) {
+    const res = await api.get(`/reportes/${id}/metricas-tiempos`);
+    return res.data;
   }
 };
 
 export const novedadesService = {
   async getAll(params = null) {
     const res = await api.get('/novedades', { params });
+    return res.data;
+  },
+
+  async getMetricasTiempos(params = {}) {
+    const res = await api.get('/novedades/metricas-tiempos', { params });
     return res.data;
   },
 
@@ -186,4 +196,42 @@ export const novedadesService = {
   }
 };
 
+export const usuariosService = {
+  async listar(params = {}) {
+    const res = await api.get('/usuarios', { params });
+    return res.data;
+  },
+
+  async obtenerPorId(id) {
+    const res = await api.get(`/usuarios/${id}`);
+    return res.data;
+  },
+
+  async crear(datos) {
+    const res = await api.post('/usuarios', datos);
+    return res.data;
+  },
+
+  async actualizar(id, datos) {
+    const res = await api.put(`/usuarios/${id}`, datos);
+    return res.data;
+  },
+
+  async cambiarPassword(id, { newPassword, requiere_cambio_pw }) {
+    const res = await api.patch(`/usuarios/${id}/password`, { newPassword, requiere_cambio_pw });
+    return res.data;
+  },
+
+  async eliminar(id) {
+    const res = await api.delete(`/usuarios/${id}`);
+    return res.data;
+  },
+
+  async restaurar(id) {
+    const res = await api.post(`/usuarios/${id}/restaurar`);
+    return res.data;
+  }
+};
+
 export default api;
+

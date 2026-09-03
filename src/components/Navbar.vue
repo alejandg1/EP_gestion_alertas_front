@@ -16,9 +16,9 @@
             <i class="fa-solid fa-user-circle"></i> {{ usuario.nombre || usuario.correo }}
           </span>
 
-          <button v-if="usuario.rol === 'admin'" type="button" class="btn btn-sm btn-outline-white" @click="$emit('open-register')">
-            <i class="fa-solid fa-user-plus"></i> Registrar Operador
-          </button>
+          <router-link v-if="usuario.rol === 'admin'" to="/usuarios" class="btn btn-sm btn-outline-white" title="Administración de cuentas y roles">
+            <i class="fa-solid fa-users-gear"></i> Gestión de Usuarios
+          </router-link>
 
           <button type="button" class="btn btn-sm btn-danger" @click="cerrarSesion">
             <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
@@ -35,21 +35,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { authService } from '../services/api.js';
+import { useAuth } from '../composables/useAuth.js';
 
 const emit = defineEmits(['open-register']);
-const router = useRouter();
-
-const usuario = computed(() => authService.getUsuarioSesion());
-
-async function cerrarSesion() {
-  if (confirm('Desea cerrar la sesion del operador actual?')) {
-    await authService.logout();
-    router.push('/login');
-  }
-}
+const { usuario, cerrarSesion } = useAuth();
 </script>
 
 <style scoped>

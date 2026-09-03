@@ -10,6 +10,10 @@
           <input type="checkbox" v-model="mostrarAGA" @change="actualizarAGA" />
           <span>Zonas AGA</span>
         </label>
+        <label class="checkbox-label cam-toggle-label" title="Mostrar cámaras de videovigilancia CVVC más cercanas a cada evento">
+          <input type="checkbox" v-model="mostrarCamaras" @change="actualizarCamaras" />
+          <span><i class="fa-solid fa-video"></i> Cámaras</span>
+        </label>
       </div>
       <div class="map-actions-group">
         <button type="button" class="btn btn-secondary btn-sm btn-ajustar" @click="ajustarVista" title="Centrar mapa en eventos registrados">
@@ -30,6 +34,15 @@
         <span>{{ estilo.nombre }}</span>
       </div>
     </div>
+
+    <!-- MODAL STREAMING DE CÁMARA CVVC -->
+    <ModalCamaraStream
+      v-model="modalStreamAbierto"
+      :camara="camaraSeleccionada"
+      :novedad="novedadAsociada"
+      :novedades="novedades"
+      @capturar-frame="onCapturarFrame"
+    />
   </div>
 </template>
 
@@ -40,6 +53,8 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { AGAS_WGS84 } from '../services/agaData.js';
 import { estiloMapaPorTipo, textoEventoIndividual } from '../services/nlpDetector.js';
+import { camarasService } from '../services/camarasService.js';
+import ModalCamaraStream from './common/ModalCamaraStream.vue';
 
 const props = defineProps({
   novedades: {
@@ -48,15 +63,28 @@ const props = defineProps({
   }
 });
 
+const emit = defineEmits(['capturar-frame']);
+
 const mapElement = ref(null);
 let map = null;
 let markersLayer = null;
 let agaLayer = null;
 let heatLayer = null;
+let camarasLayer = null;
+let lineasCamarasLayer = null;
 
 const mostrarKDE = ref(true);
 const mostrarAGA = ref(true);
+const mostrarCamaras = ref(true);
 const isExpanded = ref(false);
+
+const modalStreamAbierto = ref(false);
+const camaraSeleccionada = ref(null);
+const novedadAsociada = ref(null);
+
+function onCapturarFrame(payload) {
+  emit('capturar-frame', payload);
+}
 
 function toggleExpandir() {
   isExpanded.value = !isExpanded.value;
@@ -112,7 +140,7 @@ function initMap() {
     zoomControl: true
   });
 
-  // Capa OpenStreetMap (100% Libre y sin limites de trial)
+  // Capa OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     maxZoom: 19
@@ -120,9 +148,38 @@ function initMap() {
 
   markersLayer = L.layerGroup().addTo(map);
   agaLayer = L.layerGroup().addTo(map);
+  lineasCamarasLayer = L.layerGroup().addTo(map);
+  camarasLayer = L.layerGroup().addTo(map);
+
+  // Exponer método global para abrir streaming desde HTML de los popups
+  window.__abrirStreamingCamara = (camJsonStr) => {
+    try {
+      const cam = JSON.parse(decodeURIComponent(camJsonStr));
+      camaraSeleccionada.value = cam;
+
+      // Encontrar la novedad exacta conectada por la línea punteada
+      let novExacta = null;
+      if (cam.novedad_id) {
+        novExacta = (props.novedades || []).find(n => (n.id && String(n.id) === String(cam.novedad_id)));
+      }
+      if (!novExacta && cam.novedad_asociada) {
+        novExacta = (props.novedades || []).find(n => {
+          const lat = n.latitud !== undefined ? n.latitud : (n.coordenadas ? n.coordenadas.lat : null);
+          const lng = n.longitud !== undefined ? n.longitud : (n.coordenadas ? n.coordenadas.lng : null);
+          return Number(lat) === Number(cam.novedad_asociada.latitud) && Number(lng) === Number(cam.novedad_asociada.longitud);
+        });
+      }
+      novedadAsociada.value = novExacta || cam.novedad_asociada || null;
+
+      modalStreamAbierto.value = true;
+    } catch (e) {
+      console.warn('Error al abrir cámara:', e);
+    }
+  };
 
   renderAGA();
   renderMarcadores();
+  renderCamarasCercanas();
   actualizarKDE();
   ajustarVista();
 }
@@ -157,6 +214,99 @@ function renderAGA() {
   });
 }
 
+async function renderCamarasCercanas() {
+  if (!camarasLayer || !lineasCamarasLayer) return;
+  camarasLayer.clearLayers();
+  lineasCamarasLayer.clearLayers();
+
+  if (!mostrarCamaras.value || novedadesValidas.value.length === 0) return;
+
+  const camarasProcesadas = new Map();
+
+  for (const item of novedadesValidas.value) {
+    const coords = extraerCoords(item);
+    if (!coords) continue;
+    const [lat, lng] = coords;
+
+    try {
+      const cam = await camarasService.obtenerCamaraMasCercana(lat, lng);
+      if (!cam) continue;
+
+      const camKey = `${cam.latitud},${cam.longitud}`;
+
+      // Línea punteada que une el evento con la cámara más cercana
+      const linea = L.polyline([[lat, lng], [cam.latitud, cam.longitud]], {
+        color: '#7c3aed',
+        dashArray: '5, 5',
+        weight: 1.8,
+        opacity: 0.75
+      });
+      linea.bindTooltip(`Distancia a cámara: ${cam.distancia_texto}`, { sticky: true });
+      lineasCamarasLayer.addLayer(linea);
+
+      const camConNovedad = {
+        ...cam,
+        novedad_id: item.id || item.novedad_id,
+        novedad_asociada: {
+          id: item.id || item.novedad_id,
+          tipo: item.tipo_evento || item.tipo,
+          direccion: item.direccion || item.dir,
+          latitud: lat,
+          longitud: lng,
+          fotos: item.fotos || []
+        }
+      };
+
+      if (!camarasProcesadas.has(camKey)) {
+        camarasProcesadas.set(camKey, camConNovedad);
+
+        // Icono de Cámara CVVC
+        const camIconHtml = `
+          <div class="custom-cam-pin" title="Cámara: ${cam.nombre || cam.camara_id}">
+            <i class="fa-solid fa-video"></i>
+          </div>
+        `;
+
+        const camIcon = L.divIcon({
+          html: camIconHtml,
+          className: 'leaflet-custom-cam-marker',
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+          popupAnchor: [0, -13]
+        });
+
+        const camMarker = L.marker([cam.latitud, cam.longitud], { icon: camIcon });
+
+        const camEncoded = encodeURIComponent(JSON.stringify(camConNovedad));
+        const popupCamHtml = `
+          <div class="map-popup-card cam-popup">
+            <div class="popup-header cam-popup-header">
+              <i class="fa-solid fa-video"></i>
+              <strong>Cámara: ${cam.nombre}</strong>
+            </div>
+            <div class="popup-meta">
+              <span><b>Distancia al Evento:</b> ${cam.distancia_texto}</span>
+              <span><b>Tipo:</b> ${(cam.tipo || 'Camera').toUpperCase()}</span>
+            </div>
+            <button
+              type="button"
+              class="btn-popup-stream"
+              onclick="window.__abrirStreamingCamara('${camEncoded}')"
+            >
+              <i class="fa-solid fa-play"></i> Ver Streaming
+            </button>
+          </div>
+        `;
+
+        camMarker.bindPopup(popupCamHtml);
+        camarasLayer.addLayer(camMarker);
+      }
+    } catch (e) {
+      console.warn('Error vinculando cámara:', e);
+    }
+  }
+}
+
 function renderMarcadores() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
@@ -169,7 +319,6 @@ function renderMarcadores() {
     const tipoKey = item.tipo_evento || item.tipo || 'AGUA';
     const estilo = estiloMapaPorTipo[tipoKey] || { color: '#0a3d62', nombre: tipoKey, emoji: '📍' };
 
-    // Custom DivIcon con Emoji oficial de categoría (como en el HTML original)
     const iconHtml = `
       <div class="custom-map-pin" style="background-color: ${estilo.color};" title="${estilo.nombre}">
         <span class="pin-emoji">${estilo.emoji || '📍'}</span>
@@ -263,6 +412,10 @@ function actualizarAGA() {
   renderAGA();
 }
 
+function actualizarCamaras() {
+  renderCamarasCercanas();
+}
+
 function ajustarVista() {
   if (!map || novedadesValidas.value.length === 0) return;
 
@@ -279,6 +432,7 @@ function ajustarVista() {
 
 watch(() => props.novedades, () => {
   renderMarcadores();
+  renderCamarasCercanas();
   actualizarKDE();
 }, { deep: true });
 
@@ -289,6 +443,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeydown);
+  delete window.__abrirStreamingCamara;
   if (map) {
     map.remove();
     map = null;
@@ -361,6 +516,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.cam-toggle-label {
+  color: #7c3aed !important;
+  font-weight: 700 !important;
 }
 
 .map-actions-group {
@@ -448,6 +608,23 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
+.legend-camara {
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+.legend-cam-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #7c3aed;
+  color: #ffffff;
+  border-radius: 4px;
+  font-size: 0.55rem;
+}
+
 .legend-circle {
   width: 10px;
   height: 10px;
@@ -477,6 +654,28 @@ onBeforeUnmount(() => {
   z-index: 9999 !important;
 }
 
+:deep(.custom-cam-pin) {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #7c3aed;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+:deep(.custom-cam-pin:hover) {
+  transform: scale(1.22);
+  background: #6d28d9;
+  z-index: 99999 !important;
+}
+
 :deep(.pin-emoji) {
   display: inline-flex;
   align-items: center;
@@ -499,6 +698,37 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   color: var(--text-main);
   line-height: 1.4;
+  min-width: 200px;
+}
+
+:deep(.cam-popup-header) {
+  border-left: 4px solid #7c3aed !important;
+  color: #7c3aed !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+:deep(.btn-popup-stream) {
+  margin-top: 8px;
+  width: 100%;
+  background: #7c3aed;
+  color: #ffffff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease;
+}
+
+:deep(.btn-popup-stream:hover) {
+  background: #6d28d9;
 }
 
 :deep(.popup-header) {
@@ -519,19 +749,5 @@ onBeforeUnmount(() => {
   font-size: 0.76rem;
   color: var(--text-muted);
   margin-top: 2px;
-}
-
-:deep(.popup-photos) {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-:deep(.popup-img) {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
 }
 </style>

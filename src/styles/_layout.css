@@ -1,0 +1,31 @@
+/* Layouts de Salas, Reportes y Paneles */
+.page-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.reporte-grid-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .reporte-grid-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-gap {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
