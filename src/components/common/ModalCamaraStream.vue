@@ -16,7 +16,7 @@
         <div class="cam-header">
           <div class="cam-header-title">
             <i class="fa-solid fa-video cam-head-icon"></i>
-            <span class="cam-title-text">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
+            <span class="cam-title-text">{{ camara.nombre || `Cámara #${camara.nombre}` }}</span>
           </div>
 
           <div class="cam-header-actions">
@@ -70,63 +70,63 @@
 
         <!-- CUERPO PRINCIPAL -->
         <div class="cam-body" :class="{ 'cam-body-fullscreen': isFullScreen }">
-          <!-- PANTALLA DE STREAMING (WEBCONTROL / WEB) -->
+          <!-- PANTALLA DE STREAMING (WEBRTC DIRECTO TELCONET / HTTP / WEBCONTROL) -->
           <div
             id="playWnd"
             class="cam-player-box"
             :class="{ 'cam-player-fullscreen': isFullScreen }"
             ref="playerBoxRef"
           >
-            <!-- Si hay iframe / stream web nativo -->
+            <!-- 1. Flujo WebRTC nativo Telconet o URL HTTP directa -->
             <iframe
-              v-if="camara.url_streaming && camara.url_streaming.startsWith('http')"
-              :src="camara.url_streaming"
+              v-if="streamUrl && !streamError"
+              :src="streamUrl"
               class="cam-iframe"
               allow="autoplay; encrypted-media; picture-in-picture"
               allowfullscreen
+              @error="onIframeError"
             ></iframe>
 
-            <!-- Renderizador de flujo WebControl / Canvas -->
+            <!-- 2. Fallback visual si el stream no está configurado o está inhabilitado -->
             <div v-else class="cam-stream-canvas">
               <div class="stream-top-bar">
-                <div v-if="webControlConectado" class="stream-status-pill status-plugin">
-                  <span class="status-dot"></span>
-                  <span>PLUGIN WEBCONTROL CONECTADO</span>
-                </div>
-
                 <div class="stream-vms-pill">
                   <span>{{ (camara.tipo || 'PTZ').toUpperCase() }}</span>
+                </div>
+                <div class="stream-status-pill status-disabled">
+                  <span class="status-dot dot-disabled"></span>
+                  <span>INHABILITADO</span>
                 </div>
               </div>
 
               <div class="stream-center-box">
-                <i class="fa-solid fa-video cam-watermark-icon"></i>
+                <i class="fa-solid fa-video-slash cam-watermark-icon icon-disabled"></i>
                 <span class="stream-label">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
+                <span class="stream-sublabel-disabled">Cámara temporalmente inhabilitada en el servidor de video</span>
               </div>
 
-              <div class="stream-bottom-info">
-              </div>
             </div>
           </div>
 
           <!-- BARRA DE INFORMACIÓN DE UBICACIÓN Y DISTANCIA -->
           <div class="cam-info-bar">
-
             <div class="info-actions-right">
               <div v-if="camara.distancia_texto" class="info-badge-dist">
                 <i class="fa-solid fa-route"></i>
                 <span>{{ camara.distancia_texto }} de la novedad</span>
               </div>
 
-              <button
-                type="button"
-                class="btn-plugin-launch"
-                @click="conectarOIniciarPlugin"
-                :title="webControlConectado ? 'Plugin conectado correctamente' : 'Conectar plugin HCVideoSDKWebControl'"
+              <a
+                v-if="streamUrl"
+                :href="streamUrl"
+                target="_blank"
+                rel="noopener"
+                class="btn-plugin-launch btn-plugin-download"
+                title="Abrir transmisión WebRTC en pestaña nueva"
               >
-                <i :class="webControlConectado ? 'fa-solid fa-check' : 'fa-solid fa-bolt'"></i>
-                <span>{{ webControlConectado ? 'WebControl Activo' : 'Conectar Plugin' }}</span>
-              </button>
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                <span>Abrir en otra ventana</span>
+              </a>
             </div>
           </div>
         </div>
@@ -141,7 +141,7 @@
       <div class="cam-header cam-header-mini">
         <div class="cam-header-title">
           <span class="status-dot"></span>
-          <span class="cam-title-mini">Cámara #{{ camara.id }}</span>
+          <span class="cam-title-mini">{{ camara.nombre || `Cámara #${camara.nombre}` }}</span>
         </div>
 
         <div class="cam-header-actions">
@@ -176,17 +176,17 @@
 
       <div class="cam-player-mini">
         <iframe
-          v-if="camara.url_streaming && camara.url_streaming.startsWith('http')"
-          :src="camara.url_streaming"
+          v-if="streamUrl && !streamError"
+          :src="streamUrl"
           class="cam-iframe"
           allow="autoplay; encrypted-media; picture-in-picture"
           allowfullscreen
         ></iframe>
 
         <div v-else class="cam-mini-placeholder">
-          <i class="fa-solid fa-video"></i>
+          <i class="fa-solid fa-video-slash" style="color: #f87171;"></i>
           <span class="mini-cam-name">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
-          <span v-if="camara.distancia_texto" class="mini-dist-tag">{{ camara.distancia_texto }}</span>
+          <span class="mini-dist-tag" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;">Inhabilitada</span>
         </div>
       </div>
 
@@ -228,8 +228,42 @@ const isMini = ref(false);
 const isFullScreen = ref(false);
 const capturando = ref(false);
 const webControlConectado = ref(false);
+const streamError = ref(false);
 const modalCardRef = ref(null);
 const playerBoxRef = ref(null);
+
+// Resuelve la URL de Streaming WebRTC de Telconet o URL HTTP directa con candidatos múltiples
+const streamUrl = computed(() => {
+  if (!props.camara) return '';
+  if (props.camara.url_streaming && typeof props.camara.url_streaming === 'string' && props.camara.url_streaming.startsWith('http')) {
+    return props.camara.url_streaming;
+  }
+  
+  // Extraer el identificador limpio
+  const idPrincipal = String(props.camara.id_consolidado || props.camara.id || props.camara.camara_id || '').replace(/\D/g, '');
+  if (idPrincipal) {
+    return `https://hls.ai.telconet.net/webrtc-cam/stream-${idPrincipal}/`;
+  }
+  return '';
+});
+
+// Comprueba en background la disponibilidad del stream sin mostrar errores JSON al usuario
+async function verificarDisponibilidadStream() {
+  streamError.value = false;
+  if (!streamUrl.value) return;
+
+  try {
+    const response = await fetch(streamUrl.value, { method: 'HEAD', mode: 'no-cors' });
+    // Si la petición pasa sin bloqueo
+  } catch (err) {
+    console.debug('[CamaraStream] Stream no disponible o inhabilitado:', err);
+  }
+}
+
+function onIframeError() {
+  streamError.value = true;
+  console.warn(`[CamaraStream] Cámara #${props.camara?.id || ''} inhabilitada en el servidor de video.`);
+}
 
 // Determinar con certeza la novedad destino vinculada
 const novedadDestino = computed(() => {
@@ -260,10 +294,10 @@ async function conectarOIniciarPlugin() {
       await webControlService.inicializarContenedor(playerBoxRef.value, props.camara);
       await webControlService.reproducirStream(props.camara);
     }
-    toast.success('Plugin HCVideoSDKWebControl conectado exitosamente.');
+    toast.success('Plugin VideoWebPlugin / HCVideoSDK detectado y enlazado.');
   } else {
     webControlService.ejecutarPluginLocal();
-    toast.info('Iniciando proceso local HCVideoSDKWebControl...');
+    toast.info('Si ya lo instaló, se está iniciando el proceso local. Si aún no lo tiene, descárguelo e instálelo.');
   }
 }
 
@@ -350,21 +384,7 @@ async function capturarFrame() {
       }
     }
 
-    // 4. Intentar snapshot directo desde el gateway del backend
-    if (!frameBlob && props.camara?.rtsp) {
-      try {
-        const baseUrl = (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3090' : 'http://10.10.80.70:3090')).replace(/\/+$/, '');
-        const resSnap = await axios.post(`${baseUrl}/camaras/snapshot`, {
-          rtsp: props.camara.rtsp,
-          id: props.camara.id
-        }, { responseType: 'blob', timeout: 3500 });
-        if (resSnap.data && resSnap.data.size > 1000) {
-          frameBlob = resSnap.data;
-        }
-      } catch (eGateway) {}
-    }
-
-    // 5. Si no se obtuvo una imagen real del flujo
+    // 4. Si no se obtuvo una imagen real del flujo
     if (!frameBlob || frameBlob.size < 500) {
       toast.warning('No se detectó señal de video activa en el stream para capturar el fotograma. Asegúrese de que la cámara esté transmitiendo.');
       return;
@@ -653,6 +673,28 @@ onBeforeUnmount(() => {
   background: rgba(34, 197, 94, 0.15);
 }
 
+.stream-status-pill.status-disabled {
+  border-color: #ef4444;
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.status-dot.dot-disabled {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.icon-disabled {
+  color: #f87171 !important;
+  opacity: 0.6;
+}
+
+.stream-sublabel-disabled {
+  font-size: 0.8rem;
+  color: #fca5a5;
+  font-weight: 500;
+}
+
 .stream-vms-pill {
   background: rgba(30, 41, 59, 0.8);
   border: 1px solid #475569;
@@ -782,10 +824,28 @@ onBeforeUnmount(() => {
   transition: all 0.15s ease;
 }
 
-.btn-plugin-launch:hover {
-  background: var(--accent-blue);
+.btn-plugin-download {
+  background: #0284c7;
   color: #ffffff;
-  border-color: var(--accent-blue);
+  border-color: #0369a1;
+  text-decoration: none;
+}
+
+.btn-plugin-download:hover {
+  background: #0369a1;
+  color: #ffffff;
+}
+
+.btn-plugin-active {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.btn-plugin-active:hover {
+  background: #d1fae5;
+  color: #047857;
+  border-color: #6ee7b7;
 }
 
 /* ==================================================== */

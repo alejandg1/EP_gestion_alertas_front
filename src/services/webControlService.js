@@ -1,6 +1,13 @@
+/**
+ * webControlService.js
+ * Servicio de comunicación con el plugin nativo de video (HCVideoSDKWebControl / VideoWebPlugin / WebVideoCtrl)
+ * Implementa la especificación del protocolo WebSocket local del servicio de video SDK.
+ */
+
 let socket = null;
 let pluginActivo = false;
 let sessionUuid = null;
+let isInitializing = false;
 
 function generarUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -40,32 +47,53 @@ function extractBase64Image(obj) {
 
 export const webControlService = {
   /**
-   * Intenta conectar con el servicio local HCVideoSDKWebControl en los puertos estándar (21000 a 21009)
+   * Intenta conectar con el servicio local HCVideoSDKWebControl / VideoWebPlugin
+   * en todos los puertos estándar de localhost (21000 - 21009, 8000, 9000).
    */
   async conectarServicio(puertoInicio = 21000, puertoFin = 21009) {
     if (socket && socket.readyState === WebSocket.OPEN) {
       return true;
     }
 
+    if (isInitializing) {
+      return false;
+    }
+    isInitializing = true;
+
     sessionUuid = generarUUID();
     const urlsAProbar = [];
 
+    // Puerto exacto del servicio activo HCVideoSDKWebControlService (17010)
+    urlsAProbar.push('ws://127.0.0.1:17010');
+    urlsAProbar.push('ws://localhost:17010');
+    urlsAProbar.push('wss://127.0.0.1:17010');
+    urlsAProbar.push('wss://localhost:17010');
+
+    // Protocolos y puertos secundarios de Hikvision / Dahua WebControl Service
     for (let p = puertoInicio; p <= puertoFin; p++) {
       urlsAProbar.push(`ws://127.0.0.1:${p}`);
       urlsAProbar.push(`ws://localhost:${p}`);
     }
     urlsAProbar.push('wss://127.0.0.1:21002');
+    urlsAProbar.push('wss://localhost:21002');
     urlsAProbar.push('ws://127.0.0.1:8000');
     urlsAProbar.push('ws://127.0.0.1:9000');
 
     for (const url of urlsAProbar) {
       try {
         const conectado = await new Promise((resolve) => {
-          const ws = new WebSocket(url);
+          let ws;
+          try {
+            ws = new WebSocket(url);
+          } catch {
+            resolve(null);
+            return;
+          }
+
           const timer = setTimeout(() => {
             try { ws.close(); } catch { }
             resolve(null);
-          }, 800);
+          }, 600);
 
           ws.onopen = () => {
             clearTimeout(timer);
@@ -81,16 +109,18 @@ export const webControlService = {
         if (conectado) {
           socket = conectado;
           pluginActivo = true;
+          isInitializing = false;
           this.configurarSocket(socket);
-          console.log(`[WebControl] Conectado exitosamente al plugin HCVideoSDK en ${url}`);
+          console.log(`[WebControl] Conexión establecida con el servicio local en: ${url}`);
           return true;
         }
       } catch {
-        // Continuar a la siguiente URL
+        // Continuar siguiente puerto
       }
     }
 
     pluginActivo = false;
+    isInitializing = false;
     return false;
   },
 
@@ -99,7 +129,10 @@ export const webControlService = {
       try {
         let raw = event.data;
         let data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        
+        // Disparar evento para receptores de snapshot
         window.dispatchEvent(new CustomEvent('webcontrol-snapshot', { detail: data }));
+        window.dispatchEvent(new CustomEvent('webcontrol-message', { detail: data }));
       } catch (e) {
         if (typeof event.data === 'string' && event.data.length > 500) {
           window.dispatchEvent(new CustomEvent('webcontrol-snapshot', { detail: { picData: event.data } }));
@@ -111,8 +144,15 @@ export const webControlService = {
       pluginActivo = false;
       socket = null;
     };
+
+    ws.onerror = (err) => {
+      console.warn('[WebControl] Error en socket:', err);
+    };
   },
 
+  /**
+   * Captura fotograma instantáneo de la ventana de video activa
+   */
   async capturarSnapshot() {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return null;
@@ -121,7 +161,8 @@ export const webControlService = {
     const comandos = [
       { funcName: 'SnapShot', argument: { snapShotType: 0, wndId: 0 } },
       { funcName: 'snapShot', argument: { snapShotType: 0, wndId: 0 } },
-      { funcName: 'capturePic', argument: { snapShotType: 0, wndId: 0 } }
+      { funcName: 'capturePic', argument: { snapShotType: 0, wndId: 0 } },
+      { funcName: 'GetSnapData', argument: { wndId: 0 } }
     ];
 
     return new Promise((resolve) => {
@@ -153,6 +194,9 @@ export const webControlService = {
     });
   },
 
+  /**
+   * Inicializa el contenedor nativo posicionado sobre el elemento HTML del reproductor
+   */
   async inicializarContenedor(containerElement, camara) {
     const conectado = await this.conectarServicio();
     if (!conectado || !containerElement) {
@@ -172,7 +216,9 @@ export const webControlService = {
         secret: 'SeguraEPSecret',
         ip: camara.ip || '127.0.0.1',
         port: 8000,
-        enableHTTPS: 0
+        enableHTTPS: 0,
+        layout: '1x1',
+        playMode: 0
       }
     };
 
@@ -185,6 +231,9 @@ export const webControlService = {
     }
   },
 
+  /**
+   * Envía la orden de inicio de reproducción de video en vivo
+   */
   async reproducirStream(camara) {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       return false;
@@ -194,11 +243,12 @@ export const webControlService = {
       uuid: sessionUuid,
       funcName: 'startPreview',
       argument: {
-        cameraIndexCode: String(camara.id),
+        cameraIndexCode: String(camara.id || camara.camara_id || ''),
         streamType: 0,
         protocol: 'RTSP',
-        url: camara.rtsp || '',
-        gpuMode: 1
+        url: camara.rtsp || camara.url_streaming || '',
+        gpuMode: 1,
+        wndId: 0
       }
     };
 
@@ -211,6 +261,9 @@ export const webControlService = {
     }
   },
 
+  /**
+   * Actualiza las coordenadas de la ventana de video sobre el elemento visual en caso de resize/scroll
+   */
   actualizarPosicion(containerElement) {
     if (!socket || socket.readyState !== WebSocket.OPEN || !containerElement) return;
     const rect = containerElement.getBoundingClientRect();
@@ -229,6 +282,9 @@ export const webControlService = {
     } catch { }
   },
 
+  /**
+   * Destruye la ventana nativa al cerrar el modal
+   */
   destruirPlugin() {
     if (socket && socket.readyState === WebSocket.OPEN) {
       try {
@@ -240,6 +296,9 @@ export const webControlService = {
     }
   },
 
+  /**
+   * Intenta invocar el protocolo registrado en el sistema operativo
+   */
   ejecutarPluginLocal() {
     try {
       window.location.href = 'HCVideoSDKWebControl://';

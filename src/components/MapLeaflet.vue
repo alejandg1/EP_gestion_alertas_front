@@ -229,7 +229,8 @@ async function renderCamarasCercanas() {
     const [lat, lng] = coords;
 
     try {
-      const cam = await camarasService.obtenerCamaraMasCercana(lat, lng);
+      const direccionItem = item.direccion || item.dir || item.descripcion || '';
+      const cam = await camarasService.obtenerCamaraOptimaLineaRecta(lat, lng, direccionItem, 200);
       if (!cam) continue;
 
       const camKey = `${cam.latitud},${cam.longitud}`;

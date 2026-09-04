@@ -1,6 +1,6 @@
-import axios from 'axios';
+import { CAMARAS_DATA } from './camarasData.js';
 
-let camarasCache = null;
+let camarasCache = CAMARAS_DATA;
 let cargandoCamarasPromise = null;
 
 export function calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
@@ -50,50 +50,12 @@ function normalizarCamaras(lista) {
 }
 
 export const camarasService = {
-  async obtenerCamaras(forceRefresh = false) {
-    if (camarasCache && !forceRefresh) {
+  async obtenerCamaras() {
+    if (camarasCache && camarasCache.length > 0) {
       return camarasCache;
     }
-
-    if (cargandoCamarasPromise && !forceRefresh) {
-      return cargandoCamarasPromise;
-    }
-
-    const directApiUrl = import.meta.env.VITE_CAMERAS_API || import.meta.env.CAMERAS_API || (typeof process !== 'undefined' ? process.env?.CAMERAS_API : '') || '';
-    const apiBase = (import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3090' : 'http://10.10.80.70:3090')).replace(/\/+$/, '');
-    const backendProxyUrl = `${apiBase}/camaras`;
-
-    cargandoCamarasPromise = (async () => {
-      if (directApiUrl) {
-        try {
-          const res = await axios.get(directApiUrl, { timeout: 8000 });
-          const lista = Array.isArray(res.data) ? res.data : (res.data?.camaras || res.data?.data || []);
-          const normalizadas = normalizarCamaras(lista);
-          if (normalizadas.length > 0) {
-            camarasCache = normalizadas;
-            return camarasCache;
-          }
-        } catch (errDirect) {
-          console.warn('[CamarasService] Consulta directa a CAMERAS_API falló, probando proxy del backend:', errDirect.message);
-        }
-      }
-
-      try {
-        const resProxy = await axios.get(backendProxyUrl, { timeout: 10000 });
-        const lista = Array.isArray(resProxy.data) ? resProxy.data : (resProxy.data?.camaras || resProxy.data?.data || []);
-        const normalizadas = normalizarCamaras(lista);
-        if (normalizadas.length > 0) {
-          camarasCache = normalizadas;
-          return camarasCache;
-        }
-      } catch (errProxy) {
-        console.error('[CamarasService] Error al consultar proxy /camaras:', errProxy.message);
-      }
-
-      return [];
-    })();
-
-    return cargandoCamarasPromise;
+    camarasCache = CAMARAS_DATA || [];
+    return camarasCache;
   },
 
   async obtenerCamaraMasCercana(lat, lng, maxRadioMetros = null) {
@@ -144,6 +106,72 @@ export const camarasService = {
       })
       .filter(cam => cam.distancia_metros <= radioMetros)
       .sort((a, b) => a.distancia_metros - b.distancia_metros);
+  },
+
+  /**
+   * Obtiene la cámara óptima en línea recta / línea de vista dentro de un rango aceptable (<= 200m).
+   * Pondera:
+   * 1. Coincidencia del eje vial / nombre de la calle en la ubicación.
+   * 2. Tipo PTZ (capacidad de giro y zoom en línea recta).
+   * 3. Menor distancia angular y lineal.
+   */
+  async obtenerCamaraOptimaLineaRecta(lat, lng, direccion = '', maxRadioMetros = 200) {
+    if (lat === null || lng === null || isNaN(Number(lat)) || isNaN(Number(lng))) {
+      return null;
+    }
+
+    const candidatas = await this.obtenerCamarasEnRadio(lat, lng, maxRadioMetros);
+    if (!candidatas.length) {
+      // Fallback a la más cercana en radio ampliado si no hay ninguna a <= 200m
+      return this.obtenerCamaraMasCercana(lat, lng, 600);
+    }
+
+    if (candidatas.length === 1) {
+      return candidatas[0];
+    }
+
+    // Normalizar palabras clave de la dirección para match de eje vial / calle
+    const palabrasIgnoradas = new Set(['CALLE', 'AVENIDA', 'AV', 'CDLA', 'MZ', 'SOLAR', 'SL', 'DIAGONAL', 'FRENTE', 'ESQUINA', 'SECTOR', 'ETAPA', 'Y', 'DE', 'LA', 'EL', 'LOS', 'LAS', 'EN']);
+    const palabrasClave = String(direccion || '')
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(p => p.length > 2 && !palabrasIgnoradas.has(p));
+
+    let mejorCamara = candidatas[0];
+    let mejorPuntuacion = -1;
+
+    for (const cam of candidatas) {
+      let score = 0;
+      const camTexto = `${cam.nombre || ''} ${cam.ubicacion || ''}`
+        .toUpperCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      // Ponderación por coincidencia de calle / eje vial
+      for (const palabra of palabrasClave) {
+        if (camTexto.includes(palabra)) {
+          score += 60;
+        }
+      }
+
+      // Ponderación por tipo de cámara PTZ (mayor versatilidad de enfoque en línea recta)
+      if (String(cam.tipo || '').toLowerCase().includes('ptz')) {
+        score += 25;
+      }
+
+      // Ponderación por cercanía (máximo 30 puntos por proximidad en 200m)
+      score += Math.max(0, (maxRadioMetros - cam.distancia_metros) / (maxRadioMetros / 30));
+
+      if (score > mejorPuntuacion) {
+        mejorPuntuacion = score;
+        mejorCamara = cam;
+      }
+    }
+
+    return mejorCamara;
   }
 };
 

@@ -542,12 +542,12 @@ async function detectarCamaraCercana() {
     return;
   }
   try {
-    const cam = await camarasService.obtenerCamaraMasCercana(form.latitud, form.longitud);
+    const cam = await camarasService.obtenerCamaraOptimaLineaRecta(form.latitud, form.longitud, form.direccion || '', 200);
     if (cam) {
       form.camara_cvvc = String(cam.id || cam.camara_id || '');
-      toast.success(`Cámara #${cam.id} detectada a ${cam.distancia_texto}`);
+      toast.success(`Cámara en línea de vista #${cam.id} asignada (${cam.distancia_texto})`);
     } else {
-      toast.info('No se encontraron cámaras cercanas o API no disponible.');
+      toast.info('No se encontraron cámaras en el eje visual o dentro de 200m.');
     }
   } catch (err) {
     console.error('Error al detectar cámara:', err);
