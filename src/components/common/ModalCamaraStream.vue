@@ -22,6 +22,18 @@
           <div class="cam-header-actions">
             <!-- SELECTOR / INDICADOR DE NOVEDAD DESTINO -->
 
+            <!-- BOTÓN CONTROL PTZ (JOYSTICK EN PANTALLA) -->
+            <button
+              v-if="esCamaraPtz"
+              type="button"
+              class="btn-icon-head"
+              :class="{ 'btn-ptz-active': mostrarJoystick }"
+              @click="mostrarJoystick = !mostrarJoystick"
+              title="Activar / Desactivar control de movimiento PTZ (Joystick)"
+            >
+              <i class="fa-solid fa-gamepad"></i>
+            </button>
+
             <!-- BOTÓN CAPTURAR FOTOGRAMA LIMPIO -->
             <button
               type="button"
@@ -76,6 +88,7 @@
             class="cam-player-box"
             :class="{ 'cam-player-fullscreen': isFullScreen }"
             ref="playerBoxRef"
+            @wheel.prevent="onWheelZoom"
           >
             <!-- 1. Flujo WebRTC nativo Telconet o URL HTTP directa -->
             <iframe
@@ -104,7 +117,18 @@
                 <span class="stream-label">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
                 <span class="stream-sublabel-disabled">Cámara temporalmente inhabilitada en el servidor de video</span>
               </div>
+            </div>
 
+            <!-- 3. CONTROL DE MOVIMIENTO PTZ -->
+            <div v-if="esCamaraPtz && mostrarJoystick" class="ptz-joystick-card ptz-modal-overlay">
+              <PtzJoystickWidget
+                :camera-id="idCamaraPtz"
+                :joystick-pos="joystickPos"
+                @mover-vector="onMoverVector"
+                @mover-zoom="onMoverZoom"
+                @mover-zoom-relativo="onMoverZoomRelativo"
+                @detener="onDetenerPtz"
+              />
             </div>
           </div>
 
@@ -133,67 +157,90 @@
       </div>
     </div>
 
-    <!-- MODO VENTANA MINI FLOTANTE (ESQUINA INFERIOR DERECHA) -->
-    <div
-      v-else-if="modelValue && camara && isMini"
-      class="cam-card cam-card-mini"
-    >
-      <div class="cam-header cam-header-mini">
-        <div class="cam-header-title">
-          <span class="status-dot"></span>
-          <span class="cam-title-mini">{{ camara.nombre || `Cámara #${camara.nombre}` }}</span>
-        </div>
-
-        <div class="cam-header-actions">
-          <button
-            type="button"
-            class="btn-icon-head"
-            @click="capturarFrame"
-            :disabled="capturando"
-            title="Capturar fotograma limpio"
-          >
-            <i v-if="capturando" class="fa-solid fa-spinner fa-spin"></i>
-            <i v-else class="fa-solid fa-camera"></i>
-          </button>
-          <button
-            type="button"
-            class="btn-icon-head"
-            @click="toggleMini"
-            title="Expandir a ventana normal"
-          >
-            <i class="fa-solid fa-expand"></i>
-          </button>
-          <button
-            type="button"
-            class="btn-icon-head btn-icon-close"
-            @click="cerrar"
-            title="Cerrar"
-          >
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
+    <!-- MODO VENTANA MINI FLOTANTE + JOYSTICK FLOTANTE A SU IZQUIERDA -->
+    <template v-else-if="modelValue && camara && isMini">
+      <!-- 1. JOYSTICK FLOTANTE INDEPENDIENTE A LA IZQUIERDA -->
+      <div
+        v-if="esCamaraPtz && mostrarJoystickMini"
+        class="ptz-joystick-card ptz-mini-floating-card"
+      >
+        <PtzJoystickWidget
+          :camera-id="idCamaraPtz"
+          :joystick-pos="joystickPos"
+          @mover-vector="onMoverVector"
+          @mover-zoom="onMoverZoom"
+          @mover-zoom-relativo="onMoverZoomRelativo"
+          @detener="onDetenerPtz"
+        />
       </div>
 
-      <div class="cam-player-mini">
-        <iframe
-          v-if="streamUrl && !streamError"
-          :src="streamUrl"
-          class="cam-iframe"
-          allow="autoplay; encrypted-media; picture-in-picture"
-          allowfullscreen
-        ></iframe>
+      <!-- 2. VENTANA MINI DEL STREAM (MÁS GRANDE) -->
+      <div class="cam-card cam-card-mini">
+        <div class="cam-header cam-header-mini">
+          <div class="cam-header-title">
+            <span class="status-dot"></span>
+            <span class="cam-title-mini">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
+          </div>
 
-        <div v-else class="cam-mini-placeholder">
-          <i class="fa-solid fa-video-slash" style="color: #f87171;"></i>
-          <span class="mini-cam-name">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
-          <span class="mini-dist-tag" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;">Inhabilitada</span>
+          <div class="cam-header-actions">
+            <!-- Toggle Joystick en Modo Mini -->
+            <button
+              v-if="esCamaraPtz"
+              type="button"
+              class="btn-icon-head"
+              :class="{ 'btn-ptz-active': mostrarJoystickMini }"
+              @click="mostrarJoystickMini = !mostrarJoystickMini"
+              title="Mostrar / Ocultar control PTZ"
+            >
+              <i class="fa-solid fa-gamepad"></i>
+            </button>
+
+            <button
+              type="button"
+              class="btn-icon-head"
+              @click="capturarFrame"
+              :disabled="capturando"
+              title="Capturar fotograma limpio"
+            >
+              <i v-if="capturando" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-camera"></i>
+            </button>
+            <button
+              type="button"
+              class="btn-icon-head"
+              @click="toggleMini"
+              title="Expandir a ventana normal"
+            >
+              <i class="fa-solid fa-expand"></i>
+            </button>
+            <button
+              type="button"
+              class="btn-icon-head btn-icon-close"
+              @click="cerrar"
+              title="Cerrar"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="cam-player-mini" @wheel.prevent="onWheelZoom">
+          <iframe
+            v-if="streamUrl && !streamError"
+            :src="streamUrl"
+            class="cam-iframe"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+
+          <div v-else class="cam-mini-placeholder">
+            <i class="fa-solid fa-video-slash" style="color: #f87171;"></i>
+            <span class="mini-cam-name">{{ camara.nombre || `Cámara #${camara.id}` }}</span>
+            <span class="mini-dist-tag" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5;">Inhabilitada</span>
+          </div>
         </div>
       </div>
-
-      <div class="cam-mini-footer">
-        <span class="mini-dir-text">{{ camara.ubicacion || 'Ubicación activa' }}</span>
-      </div>
-    </div>
+    </template>
   </Teleport>
 </template>
 
@@ -202,6 +249,8 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import { toast } from '../../services/toast.js';
 import { webControlService } from '../../services/webControlService.js';
+import { usePtzControl } from '../../composables/usePtzControl.js';
+import PtzJoystickWidget from './PtzJoystickWidget.vue';
 
 const props = defineProps({
   modelValue: {
@@ -224,13 +273,73 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'capturar-frame']);
 
-const isMini = ref(false);
+const isMini = ref(true);
 const isFullScreen = ref(false);
 const capturando = ref(false);
 const webControlConectado = ref(false);
 const streamError = ref(false);
+const mostrarJoystick = ref(true);
+const mostrarJoystickMini = ref(true);
 const modalCardRef = ref(null);
 const playerBoxRef = ref(null);
+
+const {
+  ptzActivo,
+  direccionActual,
+  joystickPos,
+  inicializarPtz,
+  moverJoystickVector,
+  moverZoom,
+  moverZoomRelativo,
+  detenerMovimiento
+} = usePtzControl();
+
+const esCamaraPtz = computed(() => {
+  return String(props.camara?.tipo || '').toLowerCase().includes('ptz') || String(props.camara?.nombre || '').toUpperCase().endsWith('P');
+});
+
+const idCamaraPtz = computed(() => {
+  if (!props.camara) return '';
+  if (streamUrl.value) {
+    const match = streamUrl.value.match(/stream-(\d+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return String(props.camara.id_consolidado || props.camara.id || props.camara.camara_id || '').replace(/\D/g, '');
+});
+
+function onMoverVector({ x, y, z }) {
+  if (!idCamaraPtz.value) return;
+  moverJoystickVector(idCamaraPtz.value, x, y, z);
+}
+
+function onMoverZoom(factor) {
+  if (!idCamaraPtz.value) return;
+  moverZoom(idCamaraPtz.value, factor);
+}
+
+function onMoverZoomRelativo(delta) {
+  if (!idCamaraPtz.value) return;
+  moverZoomRelativo(idCamaraPtz.value, delta);
+}
+
+let wheelTimeout = null;
+function onWheelZoom(event) {
+  if (!esCamaraPtz.value || !idCamaraPtz.value) return;
+  // deltaY < 0 es scroll hacia arriba (Zoom In / Acercar)
+  const delta = event.deltaY < 0 ? 0.06 : -0.06;
+  
+  if (wheelTimeout) clearTimeout(wheelTimeout);
+  wheelTimeout = setTimeout(() => {
+    moverZoomRelativo(idCamaraPtz.value, delta);
+  }, 40);
+}
+
+function onDetenerPtz() {
+  if (!idCamaraPtz.value) return;
+  detenerMovimiento(idCamaraPtz.value);
+}
 
 // Resuelve la URL de Streaming WebRTC de Telconet o URL HTTP directa con candidatos múltiples
 const streamUrl = computed(() => {
@@ -410,20 +519,34 @@ async function capturarFrame() {
 
 watch(() => props.modelValue, (abierto) => {
   if (abierto) {
+    if (esCamaraPtz.value && idCamaraPtz.value) {
+      inicializarPtz(idCamaraPtz.value);
+    }
     setTimeout(inicializarWebControl, 150);
   } else {
+    detenerMovimiento(idCamaraPtz.value);
     webControlService.destruirPlugin();
+  }
+});
+
+watch(mostrarJoystick, (activo) => {
+  if (activo && esCamaraPtz.value && idCamaraPtz.value) {
+    inicializarPtz(idCamaraPtz.value);
   }
 });
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown);
   if (props.modelValue) {
+    if (esCamaraPtz.value && idCamaraPtz.value) {
+      inicializarPtz(idCamaraPtz.value);
+    }
     inicializarWebControl();
   }
 });
 
 onBeforeUnmount(() => {
+  detenerMovimiento(idCamaraPtz.value);
   window.removeEventListener('keydown', handleKeydown);
   webControlService.destruirPlugin();
 });
@@ -849,37 +972,42 @@ onBeforeUnmount(() => {
 }
 
 /* ==================================================== */
-/* MODO MINI VENTANA FLOTANTE (ESQUINA INFERIOR DERECHA) */
+/* MODO MINI VENTANA FLOTANTE (ESTILO INSTITUCIONAL SOBRIO)*/
 /* ==================================================== */
 .cam-card-mini {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  width: 320px;
+  width: 440px;
+  max-width: 90vw;
   z-index: 99999;
-  border: 2px solid var(--accent-blue);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
-  animation: miniIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-lg);
+  animation: miniIn 0.2s ease-out;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 @keyframes miniIn {
-  from { opacity: 0; transform: translateY(16px) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .cam-header-mini {
   padding: 8px 12px;
+  background: var(--primary-navy);
 }
 
 .cam-title-mini {
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #ffffff;
 }
 
 .cam-player-mini {
   width: 100%;
-  height: 170px;
+  height: 255px;
   background: #0f172a;
   position: relative;
 }
@@ -891,16 +1019,16 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   color: #38bdf8;
 }
 
 .cam-mini-placeholder i {
-  font-size: 1.8rem;
+  font-size: 2.2rem;
 }
 
 .mini-cam-name {
-  font-size: 0.74rem;
+  font-size: 0.78rem;
   color: #f1f5f9;
   font-weight: 600;
   max-width: 90%;
@@ -911,29 +1039,87 @@ onBeforeUnmount(() => {
 }
 
 .mini-dist-tag {
-  background: rgba(34, 197, 94, 0.2);
-  border: 1px solid #22c55e;
-  color: #4ade80;
-  font-size: 0.65rem;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid #16a34a;
+  color: #22c55e;
+  font-size: 0.68rem;
   font-weight: 700;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
-.cam-mini-footer {
+/* ==================================================== */
+/* CONTROL PTZ UNIFICADO (MODAL Y MINI STREAM) */
+/* ==================================================== */
+.btn-ptz-active {
+  background: var(--primary-navy) !important;
+  color: #ffffff !important;
+  border-color: var(--accent-blue) !important;
+}
+
+.btn-ptz-unsupported {
+  color: #f87171 !important;
+  opacity: 0.7;
+}
+
+.ptz-joystick-card {
+  width: 176px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid #334155;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  user-select: none;
+  z-index: 99999;
+}
+
+/* BADGE DE ADVERTENCIA PTZ */
+.ptz-warn-badge {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
-  background: #f8fafc;
-  font-size: 0.72rem;
-  border-top: 1px solid var(--border);
+  gap: 6px;
+  width: 100%;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  user-select: none;
 }
 
-.mini-dir-text {
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
+.ptz-warn-badge i {
+  color: #ef4444;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+/* En Modal Principal (Overlay sobre el video) */
+.ptz-modal-overlay {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 20;
+  animation: ptzIn 0.2s ease-out;
+}
+
+/* En Mini Stream (Tarjeta satélite flotando a la izquierda) */
+.ptz-mini-floating-card {
+  position: fixed;
+  bottom: 20px;
+  right: 490px;
+  animation: miniIn 0.2s ease-out;
+}
+
+@keyframes ptzIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

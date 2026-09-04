@@ -32,17 +32,14 @@ export function initSocket() {
 
   socketInstance.on('connect', () => {
     isSocketConnected.value = true;
-    console.log('[Socket.io] Conectado a', API_BASE_URL);
   });
 
   socketInstance.on('disconnect', () => {
     isSocketConnected.value = false;
-    console.log('[Socket.io] Desconectado');
   });
 
   socketInstance.on('connect_error', (err) => {
     isSocketConnected.value = false;
-    console.warn('[Socket.io] Error de conexión:', err.message);
   });
 
   return socketInstance;

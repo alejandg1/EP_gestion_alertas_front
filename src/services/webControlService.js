@@ -63,21 +63,21 @@ export const webControlService = {
     sessionUuid = generarUUID();
     const urlsAProbar = [];
 
-    // Puerto exacto del servicio activo HCVideoSDKWebControlService (17010)
-    urlsAProbar.push('ws://127.0.0.1:17010');
-    urlsAProbar.push('ws://localhost:17010');
-    urlsAProbar.push('wss://127.0.0.1:17010');
-    urlsAProbar.push('wss://localhost:17010');
+    // // Puerto exacto del servicio activo HCVideoSDKWebControlService (17010)
+    // urlsAProbar.push('ws://127.0.0.1:17010');
+    // urlsAProbar.push('ws://localhost:17010');
+    // urlsAProbar.push('wss://127.0.0.1:17010');
+    // urlsAProbar.push('wss://localhost:17010');
 
     // Protocolos y puertos secundarios de Hikvision / Dahua WebControl Service
-    for (let p = puertoInicio; p <= puertoFin; p++) {
-      urlsAProbar.push(`ws://127.0.0.1:${p}`);
-      urlsAProbar.push(`ws://localhost:${p}`);
-    }
-    urlsAProbar.push('wss://127.0.0.1:21002');
-    urlsAProbar.push('wss://localhost:21002');
-    urlsAProbar.push('ws://127.0.0.1:8000');
-    urlsAProbar.push('ws://127.0.0.1:9000');
+    // for (let p = puertoInicio; p <= puertoFin; p++) {
+    //   urlsAProbar.push(`ws://127.0.0.1:${p}`);
+    //   urlsAProbar.push(`ws://localhost:${p}`);
+    // }
+    // urlsAProbar.push('wss://127.0.0.1:21002');
+    // urlsAProbar.push('wss://localhost:21002');
+    // urlsAProbar.push('ws://127.0.0.1:8000');
+    // urlsAProbar.push('ws://127.0.0.1:9000');
 
     for (const url of urlsAProbar) {
       try {
@@ -129,7 +129,7 @@ export const webControlService = {
       try {
         let raw = event.data;
         let data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-        
+
         // Disparar evento para receptores de snapshot
         window.dispatchEvent(new CustomEvent('webcontrol-snapshot', { detail: data }));
         window.dispatchEvent(new CustomEvent('webcontrol-message', { detail: data }));
