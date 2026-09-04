@@ -51,6 +51,9 @@ import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { AGAS_WGS84 } from '../services/agaData.js';
 import { estiloMapaPorTipo, textoEventoIndividual } from '../services/nlpDetector.js';
 import { camarasService } from '../services/camarasService.js';
@@ -70,7 +73,6 @@ let map = null;
 let markersLayer = null;
 let agaLayer = null;
 let heatLayer = null;
-let camarasLayer = null;
 let lineasCamarasLayer = null;
 
 const mostrarKDE = ref(true);
@@ -130,6 +132,52 @@ const novedadesValidas = computed(() => {
   return (props.novedades || []).filter(item => extraerCoords(item) !== null);
 });
 
+function generarContenidoPopup(item, index, lat, lng) {
+  const tipoKey = item.tipo_evento || item.tipo || 'AGUA';
+  const estilo = estiloMapaPorTipo[tipoKey] || { color: '#0a3d62', nombre: tipoKey, emoji: '📍' };
+
+  let fotosHtml = '';
+  if (item.fotos && item.fotos.length > 0) {
+    fotosHtml = '<div style="display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;">';
+    item.fotos.forEach((f, idx) => {
+      const u = resolverUrlFoto(f);
+      fotosHtml += `<img src="${u}" style="width:70px;height:52px;object-fit:cover;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer;" onclick="window.open('${u}', '_blank')" title="Ver fotografia #${idx + 1}" />`;
+    });
+    fotosHtml += '</div>';
+  }
+
+  const coordTexto = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  const nombreTipo = textoEventoIndividual[tipoKey] || estilo.nombre || tipoKey;
+  const direccionTexto = item.direccion || item.dir || 'Sin dirección registrada';
+  const recursoTexto = item.recurso_asignado || item.recurso || 'N/A';
+  const estadoTexto = item.estado_operativo || item.estado || '⛔PENDIENTE';
+  const agaTexto = item.aga || 'N/D';
+  const horaTexto = item.hora_evento || item.hora || '00:00';
+  const fichaTexto = item.ficha || item.numero_ficha || item.datos_adicionales?.ficha || '';
+
+  return `
+    <div class="map-popup-card">
+      <div class="popup-header" style="border-left: 4px solid ${estilo.color};">
+        <strong>${estilo.emoji || '📍'} Evento #${index + 1}: ${nombreTipo}</strong>
+        ${fichaTexto ? `<span class="popup-ficha-tag">#${fichaTexto}</span>` : ''}
+      </div>
+      <p class="popup-dir">${direccionTexto}</p>
+      <div class="popup-meta">
+        <span><b>Coordenadas:</b> ${coordTexto}</span>
+      </div>
+      <div class="popup-meta">
+        <span><b>AGA:</b> ${agaTexto}</span>
+        <span><b>Hora:</b> ${horaTexto}</span>
+      </div>
+      <div class="popup-meta">
+        <span><b>Recurso:</b> ${recursoTexto}</span>
+        <span><b>Estado:</b> ${estadoTexto}</span>
+      </div>
+      ${fotosHtml}
+    </div>
+  `;
+}
+
 function initMap() {
   if (!mapElement.value) return;
 
@@ -146,10 +194,32 @@ function initMap() {
     maxZoom: 19
   }).addTo(map);
 
-  markersLayer = L.layerGroup().addTo(map);
+  // Cluster Group unificado para Novedades y Cámaras
+  markersLayer = L.markerClusterGroup({
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    spiderfyDistanceMultiplier: 1.6,
+    maxClusterRadius: 45,
+    iconCreateFunction: function(cluster) {
+      const count = cluster.getChildCount();
+      return L.divIcon({
+        html: `
+          <div class="custom-map-pin cluster-spider-pin" title="${count} elementos (Clic para desplegar)">
+            <i class="fa-solid fa-location-dot"></i>
+            <span class="spider-badge">${count}</span>
+          </div>
+        `,
+        className: 'leaflet-custom-marker leaflet-cluster-marker',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+    }
+  });
+  map.addLayer(markersLayer);
+
   agaLayer = L.layerGroup().addTo(map);
   lineasCamarasLayer = L.layerGroup().addTo(map);
-  camarasLayer = L.layerGroup().addTo(map);
 
   // Exponer método global para abrir streaming desde HTML de los popups
   window.__abrirStreamingCamara = (camJsonStr) => {
@@ -157,7 +227,6 @@ function initMap() {
       const cam = JSON.parse(decodeURIComponent(camJsonStr));
       camaraSeleccionada.value = cam;
 
-      // Encontrar la novedad exacta conectada por la línea punteada
       let novExacta = null;
       if (cam.novedad_id) {
         novExacta = (props.novedades || []).find(n => (n.id && String(n.id) === String(cam.novedad_id)));
@@ -178,9 +247,7 @@ function initMap() {
   };
 
   renderAGA();
-  renderMarcadores();
-  renderCamarasCercanas();
-  actualizarKDE();
+  actualizarMapaCompleto();
   ajustarVista();
 }
 
@@ -214,104 +281,12 @@ function renderAGA() {
   });
 }
 
-async function renderCamarasCercanas() {
-  if (!camarasLayer || !lineasCamarasLayer) return;
-  camarasLayer.clearLayers();
-  lineasCamarasLayer.clearLayers();
-
-  if (!mostrarCamaras.value || novedadesValidas.value.length === 0) return;
-
-  const camarasProcesadas = new Map();
-
-  for (const item of novedadesValidas.value) {
-    const coords = extraerCoords(item);
-    if (!coords) continue;
-    const [lat, lng] = coords;
-
-    try {
-      const direccionItem = item.direccion || item.dir || item.descripcion || '';
-      const cam = await camarasService.obtenerCamaraOptimaLineaRecta(lat, lng, direccionItem, 200);
-      if (!cam) continue;
-
-      const camKey = `${cam.latitud},${cam.longitud}`;
-
-      // Línea punteada que une el evento con la cámara más cercana
-      const linea = L.polyline([[lat, lng], [cam.latitud, cam.longitud]], {
-        color: '#7c3aed',
-        dashArray: '5, 5',
-        weight: 1.8,
-        opacity: 0.75
-      });
-      linea.bindTooltip(`Distancia a cámara: ${cam.distancia_texto}`, { sticky: true });
-      lineasCamarasLayer.addLayer(linea);
-
-      const camConNovedad = {
-        ...cam,
-        novedad_id: item.id || item.novedad_id,
-        novedad_asociada: {
-          id: item.id || item.novedad_id,
-          tipo: item.tipo_evento || item.tipo,
-          direccion: item.direccion || item.dir,
-          latitud: lat,
-          longitud: lng,
-          fotos: item.fotos || []
-        }
-      };
-
-      if (!camarasProcesadas.has(camKey)) {
-        camarasProcesadas.set(camKey, camConNovedad);
-
-        // Icono de Cámara CVVC
-        const camIconHtml = `
-          <div class="custom-cam-pin" title="Cámara: ${cam.nombre || cam.camara_id}">
-            <i class="fa-solid fa-video"></i>
-          </div>
-        `;
-
-        const camIcon = L.divIcon({
-          html: camIconHtml,
-          className: 'leaflet-custom-cam-marker',
-          iconSize: [26, 26],
-          iconAnchor: [13, 13],
-          popupAnchor: [0, -13]
-        });
-
-        const camMarker = L.marker([cam.latitud, cam.longitud], { icon: camIcon });
-
-        const camEncoded = encodeURIComponent(JSON.stringify(camConNovedad));
-        const popupCamHtml = `
-          <div class="map-popup-card cam-popup">
-            <div class="popup-header cam-popup-header">
-              <i class="fa-solid fa-video"></i>
-              <strong>Cámara: ${cam.nombre}</strong>
-            </div>
-            <div class="popup-meta">
-              <span><b>Distancia al Evento:</b> ${cam.distancia_texto}</span>
-              <span><b>Tipo:</b> ${(cam.tipo || 'Camera').toUpperCase()}</span>
-            </div>
-            <button
-              type="button"
-              class="btn-popup-stream"
-              onclick="window.__abrirStreamingCamara('${camEncoded}')"
-            >
-              <i class="fa-solid fa-play"></i> Ver Streaming
-            </button>
-          </div>
-        `;
-
-        camMarker.bindPopup(popupCamHtml);
-        camarasLayer.addLayer(camMarker);
-      }
-    } catch (e) {
-      console.warn('Error vinculando cámara:', e);
-    }
-  }
-}
-
-function renderMarcadores() {
+async function actualizarMapaCompleto() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
+  if (lineasCamarasLayer) lineasCamarasLayer.clearLayers();
 
+  // 1. Agregar todos los eventos/novedades al MarkerCluster
   novedadesValidas.value.forEach((item, index) => {
     const coords = extraerCoords(item);
     if (!coords) return;
@@ -334,50 +309,108 @@ function renderMarcadores() {
       popupAnchor: [0, -14]
     });
 
-    const marker = L.marker([lat, lng], { icon: customIcon });
-
-    let fotosHtml = '';
-    if (item.fotos && item.fotos.length > 0) {
-      fotosHtml = '<div style="display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;">';
-      item.fotos.forEach((f, idx) => {
-        const u = resolverUrlFoto(f);
-        fotosHtml += `<img src="${u}" style="width:70px;height:52px;object-fit:cover;border-radius:4px;border:1px solid #cbd5e1;cursor:pointer;" onclick="window.open('${u}', '_blank')" title="Ver fotografia #${idx + 1}" />`;
-      });
-      fotosHtml += '</div>';
-    }
-
-    const coordTexto = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    const nombreTipo = textoEventoIndividual[tipoKey] || estilo.nombre || tipoKey;
-    const direccionTexto = item.direccion || item.dir || 'Sin dirección registrada';
-    const recursoTexto = item.recurso_asignado || item.recurso || 'N/A';
-    const estadoTexto = item.estado_operativo || item.estado || '⛔PENDIENTE';
-    const agaTexto = item.aga || 'N/D';
-    const horaTexto = item.hora_evento || item.hora || '00:00';
-
-    const popupContent = `
-      <div class="map-popup-card">
-        <div class="popup-header" style="border-left: 4px solid ${estilo.color};">
-          <strong>${estilo.emoji || '📍'} Evento #${index + 1}: ${nombreTipo}</strong>
-        </div>
-        <p class="popup-dir">${direccionTexto}</p>
-        <div class="popup-meta">
-          <span><b>Coordenadas:</b> ${coordTexto}</span>
-        </div>
-        <div class="popup-meta">
-          <span><b>AGA:</b> ${agaTexto}</span>
-          <span><b>Hora:</b> ${horaTexto}</span>
-        </div>
-        <div class="popup-meta">
-          <span><b>Recurso:</b> ${recursoTexto}</span>
-          <span><b>Estado:</b> ${estadoTexto}</span>
-        </div>
-        ${fotosHtml}
-      </div>
-    `;
-
-    marker.bindPopup(popupContent);
+    const marker = L.marker([lat, lng], {
+      icon: customIcon,
+      isCamara: false
+    });
+    marker.bindPopup(generarContenidoPopup(item, index, lat, lng));
     markersLayer.addLayer(marker);
   });
+
+  // 2. Agregar cámaras cercanas al mismo MarkerCluster si está activado mostrarCamaras
+  if (mostrarCamaras.value && novedadesValidas.value.length > 0) {
+    const camarasProcesadas = new Map();
+
+    for (const item of novedadesValidas.value) {
+      const coords = extraerCoords(item);
+      if (!coords) continue;
+      const [lat, lng] = coords;
+
+      try {
+        const direccionItem = item.direccion || item.dir || item.descripcion || '';
+        const cam = await camarasService.obtenerCamaraOptimaLineaRecta(lat, lng, direccionItem, 200);
+        if (!cam) continue;
+
+        const camKey = `${Number(cam.latitud).toFixed(6)},${Number(cam.longitud).toFixed(6)}`;
+
+        // Línea punteada que une el evento con la cámara
+        if (lineasCamarasLayer) {
+          const linea = L.polyline([[lat, lng], [cam.latitud, cam.longitud]], {
+            color: '#7c3aed',
+            dashArray: '5, 5',
+            weight: 1.8,
+            opacity: 0.75
+          });
+          linea.bindTooltip(`Distancia a cámara: ${cam.distancia_texto}`, { sticky: true });
+          lineasCamarasLayer.addLayer(linea);
+        }
+
+        const camConNovedad = {
+          ...cam,
+          novedad_id: item.id || item.novedad_id,
+          novedad_asociada: {
+            id: item.id || item.novedad_id,
+            tipo: item.tipo_evento || item.tipo,
+            direccion: item.direccion || item.dir,
+            latitud: lat,
+            longitud: lng,
+            fotos: item.fotos || []
+          }
+        };
+
+        if (!camarasProcesadas.has(camKey)) {
+          camarasProcesadas.set(camKey, camConNovedad);
+
+          const camIconHtml = `
+            <div class="custom-cam-pin" title="Cámara: ${cam.nombre || cam.camara_id}">
+              <i class="fa-solid fa-video"></i>
+            </div>
+          `;
+
+          const camIcon = L.divIcon({
+            html: camIconHtml,
+            className: 'leaflet-custom-cam-marker',
+            iconSize: [26, 26],
+            iconAnchor: [13, 13],
+            popupAnchor: [0, -13]
+          });
+
+          const camMarker = L.marker([cam.latitud, cam.longitud], {
+            icon: camIcon,
+            isCamara: true
+          });
+
+          const camEncoded = encodeURIComponent(JSON.stringify(camConNovedad));
+          const popupCamHtml = `
+            <div class="map-popup-card cam-popup">
+              <div class="popup-header cam-popup-header">
+                <i class="fa-solid fa-video"></i>
+                <strong>Cámara: ${cam.nombre}</strong>
+              </div>
+              <div class="popup-meta">
+                <span><b>Distancia al Evento:</b> ${cam.distancia_texto}</span>
+                <span><b>Tipo:</b> ${(cam.tipo || 'Camera').toUpperCase()}</span>
+              </div>
+              <button
+                type="button"
+                class="btn-popup-stream"
+                onclick="window.__abrirStreamingCamara('${camEncoded}')"
+              >
+                <i class="fa-solid fa-play"></i> Ver Streaming
+              </button>
+            </div>
+          `;
+
+          camMarker.bindPopup(popupCamHtml);
+          markersLayer.addLayer(camMarker);
+        }
+      } catch (e) {
+        console.warn('Error vinculando cámara:', e);
+      }
+    }
+  }
+
+  actualizarKDE();
 }
 
 function actualizarKDE() {
@@ -414,7 +447,7 @@ function actualizarAGA() {
 }
 
 function actualizarCamaras() {
-  renderCamarasCercanas();
+  actualizarMapaCompleto();
 }
 
 function ajustarVista() {
@@ -432,9 +465,7 @@ function ajustarVista() {
 }
 
 watch(() => props.novedades, () => {
-  renderMarcadores();
-  renderCamarasCercanas();
-  actualizarKDE();
+  actualizarMapaCompleto();
 }, { deep: true });
 
 onMounted(() => {
@@ -635,24 +666,24 @@ onBeforeUnmount(() => {
 }
 
 :deep(.custom-map-pin) {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  font-size: 13px;
-  font-family: inherit;
+  font-size: 12px;
   cursor: pointer;
-  transition: transform 0.15s ease;
 }
 
-:deep(.custom-map-pin:hover) {
-  transform: scale(1.18);
-  z-index: 9999 !important;
+:deep(.pin-emoji) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 :deep(.custom-cam-pin) {
@@ -661,27 +692,13 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: #7c3aed;
   border: 2px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  box-shadow: 0 2px 5px rgba(124, 58, 237, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-:deep(.custom-cam-pin:hover) {
-  transform: scale(1.22);
-  background: #6d28d9;
-  z-index: 99999 !important;
-}
-
-:deep(.pin-emoji) {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
 }
 
 :deep(.aga-tooltip) {
@@ -750,5 +767,44 @@ onBeforeUnmount(() => {
   font-size: 0.76rem;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+:deep(.popup-ficha-tag) {
+  margin-left: auto;
+  font-size: 0.7rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-family: Consolas, monospace;
+}
+
+:deep(.cluster-spider-pin) {
+  position: relative;
+  background-color: #0a3d62 !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  cursor: pointer;
+}
+
+:deep(.spider-badge) {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1.5px solid #ffffff;
+  border-radius: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  line-height: 1;
 }
 </style>

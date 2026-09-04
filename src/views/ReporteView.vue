@@ -61,6 +61,31 @@
             <h2>1. Registro del Evento (Alerta Inmediata)</h2>
           </div>
 
+          <!-- Buscador y Registro de Ficha Hexagon / OnCall -->
+          <div class="form-group hexagon-search-group">
+            <label for="indiv_ficha">N° Ficha Hexagon / OnCall:</label>
+            <div class="input-with-action">
+              <input
+                id="indiv_ficha"
+                type="text"
+                v-model="formNovedad.ficha"
+                placeholder="Ej: 510769"
+                @keydown.enter.prevent="ejecutarConsultaHexagon"
+                :disabled="consultandoHexagon"
+              />
+              <button
+                type="button"
+                class="btn-inline-action btn-hexagon-search"
+                :disabled="consultandoHexagon || !formNovedad.ficha"
+                @click="ejecutarConsultaHexagon"
+                title="Consultar y autollenar datos desde Hexagon OnCall"
+              >
+                <i v-if="consultandoHexagon" class="fa-solid fa-spinner fa-spin"></i>
+                <i v-else class="fa-solid fa-search"></i>
+              </button>
+            </div>
+          </div>
+
           <div class="form-group">
             <label for="indiv_dir">Direccion y Referencia:</label>
             <input
@@ -286,6 +311,9 @@
               <div class="nov-summary-header">
                 <div class="nov-badge-group">
                   <span class="nov-index">#{{ idx + 1 }}</span>
+                  <span v-if="nov.ficha || nov.numero_ficha || (nov.datos_adicionales && nov.datos_adicionales.ficha)" class="nov-ficha-badge" :title="'Ficha OnCall / Hexagon: ' + (nov.ficha || nov.numero_ficha || nov.datos_adicionales.ficha)">
+                    <i class="fa-solid fa-file-invoice"></i> #{{ nov.ficha || nov.numero_ficha || nov.datos_adicionales.ficha }}
+                  </span>
                   <span class="nov-tipo-badge" :style="{ borderColor: getEstiloTipo(nov.tipo_evento || nov.tipo).color, color: getEstiloTipo(nov.tipo_evento || nov.tipo).color }">
                     <i :class="getIconoTipo(nov.tipo_evento || nov.tipo)"></i>
                     {{ getNombreTipo(nov.tipo_evento || nov.tipo) }}
@@ -482,6 +510,7 @@ import ModalEditarNovedad from '../components/common/ModalEditarNovedad.vue';
 import ParametrosLluviosa from '../components/epocas/ParametrosLluviosa.vue';
 import { CATALOGO_EVENTOS, ESTADOS_NOVEDAD, CATALOGO_RECURSOS, getEventosPorEpoca } from '../config/epocas.js';
 import { toast } from '../services/toast.js';
+import { consultarFichaHexagon } from '../services/oncallService.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -499,6 +528,7 @@ const reporteId = computed(() => route.params.id || 'nuevo');
 const usuario = computed(() => authService.getUsuarioSesion());
 
 const cargandoReporte = ref(false);
+const consultandoHexagon = ref(false);
 const guardandoNovedad = ref(false);
 const guardandoParametros = ref(false);
 const descargandoWord = ref(false);
@@ -540,18 +570,23 @@ const elaboradoPorTexto = computed(() => {
 });
 
 const formNovedad = reactive({
+  ficha: '',
+  camara_cvvc: '',
   direccion: '',
   tipo: 'AGUA',
   instituciones: '@emapagye @interagua',
   fecha: hoy,
   hora: obtenerHoraActual(),
+  hora_sitio: '',
+  solucionado: '',
   aga: '',
   agaManual: false,
   coordenadasTexto: '',
   lat: null,
   lng: null,
   recurso_asignado: 'INS-ALC 🚙',
-  estado_operativo: '⛔PENDIENTE'
+  estado_operativo: '⛔PENDIENTE',
+  datos_hexagon: null
 });
 
 const nlpDetectado = ref(false);
@@ -665,6 +700,56 @@ function recalcularAGADesdeCoordenadas() {
   }
   actualizarEstadoAGA();
   generarAlertaInmediata();
+}
+
+async function ejecutarConsultaHexagon() {
+  const numFicha = String(formNovedad.ficha || '').trim();
+  if (!numFicha) {
+    toast.warning('Ingrese el número de ficha Hexagon para consultar.');
+    return;
+  }
+
+  consultandoHexagon.value = true;
+  try {
+    const res = await consultarFichaHexagon(numFicha);
+    
+    if (res.direccion) formNovedad.direccion = res.direccion;
+    if (res.coordenadasTexto) {
+      formNovedad.coordenadasTexto = res.coordenadasTexto;
+      formNovedad.lat = res.lat;
+      formNovedad.lng = res.lng;
+    }
+    if (res.aga) {
+      formNovedad.aga = res.aga;
+      formNovedad.agaManual = false;
+      agaStatus.value = {
+        mensaje: `Zona AGA asignada: ${res.aga}`,
+        tipo: 'valido'
+      };
+    }
+    if (res.fecha) formNovedad.fecha = res.fecha;
+    if (res.hora) formNovedad.hora = res.hora;
+    if (res.hora_sitio) formNovedad.hora_sitio = res.hora_sitio;
+    if (res.solucionado) formNovedad.solucionado = res.solucionado;
+    if (res.estado_operativo) formNovedad.estado_operativo = res.estado_operativo;
+    if (res.tipo) formNovedad.tipo = res.tipo;
+    if (res.instituciones) formNovedad.instituciones = res.instituciones;
+    if (res.numero_ficha) formNovedad.ficha = res.numero_ficha;
+    if (res.camara_cvvc) formNovedad.camara_cvvc = res.camara_cvvc;
+    
+    // Preservar estructura complementaria para la base de datos y métricas
+    formNovedad.datos_hexagon = res.datos_hexagon;
+
+    // Actualizar preview de alerta inmediata
+    generarAlertaInmediata();
+
+    toast.success(`Ficha OnCall #${res.numero_ficha || numFicha} consultada y cargada con éxito.`);
+  } catch (err) {
+    console.error('Error al consultar ficha Hexagon:', err);
+    toast.error('No se pudo obtener la ficha Hexagon: ' + (err.response?.data?.message || err.message));
+  } finally {
+    consultandoHexagon.value = false;
+  }
 }
 
 function analizarTextoNLP() {
@@ -928,6 +1013,8 @@ async function registrarYConsolidar() {
       fecha_evento: formNovedad.fecha || reporte.fecha_reporte,
       hora: formNovedad.hora || '00:00',
       hora_evento: formNovedad.hora || '00:00',
+      hora_sitio: formNovedad.hora_sitio || '',
+      solucionado: formNovedad.solucionado || '',
       direccion: normalizarDescripcionNLP(dir),
       coordenadas: coords,
       latitud: coords.lat,
@@ -938,7 +1025,17 @@ async function registrarYConsolidar() {
       estado_operativo: formNovedad.estado_operativo,
       fotos: fotosSubidas,
       descripcion: `${textoEventoIndividual[formNovedad.tipo] || formNovedad.tipo} en ${dir}`,
-      acciones_inmediatas: `Notificado a ${formNovedad.instituciones}`
+      acciones_inmediatas: `Notificado a ${formNovedad.instituciones}`,
+      ficha: formNovedad.ficha || '',
+      numero_ficha: formNovedad.ficha || '',
+      camara_cvvc: formNovedad.camara_cvvc || '',
+      datos_adicionales: {
+        ficha: formNovedad.ficha || '',
+        camara_cvvc: formNovedad.camara_cvvc || '',
+        hora_sitio: formNovedad.hora_sitio || '',
+        solucionado: formNovedad.solucionado || '',
+        ...(formNovedad.datos_hexagon || {})
+      }
     };
 
     // 1. Guardar siempre en backend vía API REST
@@ -956,6 +1053,8 @@ async function registrarYConsolidar() {
     }
 
     // Resetear formulario completo y fotos
+    formNovedad.ficha = '';
+    formNovedad.camara_cvvc = '';
     formNovedad.direccion = '';
     formNovedad.coordenadasTexto = '';
     formNovedad.aga = '';
@@ -965,8 +1064,11 @@ async function registrarYConsolidar() {
     formNovedad.tipo = 'AGUA';
     formNovedad.instituciones = '@emapagye @interagua';
     formNovedad.hora = obtenerHoraActual();
+    formNovedad.hora_sitio = '';
+    formNovedad.solucionado = '';
     formNovedad.recurso_asignado = 'INS-ALC 🚙';
     formNovedad.estado_operativo = '⛔PENDIENTE';
+    formNovedad.datos_hexagon = null;
     nlpDetectado.value = false;
     nlpLabel.value = '';
     fotosSeleccionadas.value = [];
@@ -1067,6 +1169,9 @@ async function onGuardarEdicionModal({ novedad, nuevasFotos }) {
       personal_instituciones: novedad.personal_instituciones || {},
       descripcion: novedad.descripcion || `${textoEventoIndividual[novedad.tipo_evento] || novedad.tipo_evento} en ${novedad.direccion}`,
       acciones_inmediatas: novedad.acciones_inmediatas || `Notificado a ${novedad.instituciones}`,
+      ficha: novedad.ficha || '',
+      numero_ficha: novedad.ficha || '',
+      camara_cvvc: novedad.camara_cvvc || '',
       datos_adicionales: {
         recursos: novedad.recursos_instituciones || {},
         personal: novedad.personal_instituciones || {},
@@ -1092,6 +1197,9 @@ async function onGuardarEdicionModal({ novedad, nuevasFotos }) {
         ...reporte.novedades[index],
         ...novActualizada,
         fotos: (novActualizada.fotos && novActualizada.fotos.length) ? novActualizada.fotos : fotosFinales,
+        ficha: novedad.ficha || novActualizada.ficha || novActualizada.numero_ficha || '',
+        numero_ficha: novedad.ficha || novActualizada.numero_ficha || novActualizada.ficha || '',
+        camara_cvvc: novedad.camara_cvvc || novActualizada.camara_cvvc || '',
         recursos_instituciones: novedad.recursos_instituciones || {},
         personal_instituciones: novedad.personal_instituciones || {},
         datos_adicionales: {
@@ -2928,6 +3036,62 @@ onBeforeUnmount(() => {
 .btn-sig:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.hexagon-search-group {
+  margin-bottom: 14px;
+  background: #f0f7ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.hexagon-search-group label {
+  color: #0369a1;
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.btn-hexagon-search {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0 14px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-hexagon-search:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+  box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+.btn-hexagon-search:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nov-ficha-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #7dd3fc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: Consolas, monospace;
 }
 
 @media (max-width: 768px) {

@@ -490,8 +490,8 @@ function inicializarFormulario() {
   const extras = nov.datos_adicionales || {};
   form.recursos_instituciones = extras.recursos ? { ...extras.recursos } : {};
   form.personal_instituciones = extras.personal ? { ...extras.personal } : {};
-  form.ficha = extras.ficha || '';
-  form.camara_cvvc = extras.camara_cvvc || '';
+  form.ficha = extras.ficha || nov.ficha || nov.numero_ficha || '';
+  form.camara_cvvc = extras.camara_cvvc || nov.camara_cvvc || '';
   
   const af = extras.afectaciones || {};
   form.afectaciones = {

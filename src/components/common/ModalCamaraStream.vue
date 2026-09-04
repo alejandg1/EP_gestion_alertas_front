@@ -126,6 +126,7 @@
             <!-- 1. Flujo WebRTC nativo Telconet o URL HTTP directa (NO SE RECARGA AL CAMBIAR DE MODO) -->
             <iframe
               v-if="streamUrl && !streamError"
+              ref="iframeRef"
               :src="streamUrl"
               class="cam-iframe"
               allow="autoplay; encrypted-media; picture-in-picture"
@@ -233,6 +234,7 @@ const mostrarJoystick = ref(true);
 const mostrarJoystickMini = ref(true);
 const modalCardRef = ref(null);
 const playerBoxRef = ref(null);
+const iframeRef = ref(null);
 
 const {
   ptzActivo,
@@ -448,13 +450,31 @@ function base64ToBlob(b64Data, contentType = 'image/jpeg') {
   return new Blob(byteArrays, { type: contentType });
 }
 
+// Función auxiliar para descargar automáticamente un archivo Blob en el equipo del usuario
+function descargarBlobEnDisco(blob, filename) {
+  try {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (err) {
+    console.debug('Error en descarga local:', err);
+  }
+}
+
 async function capturarFrame() {
   if (capturando.value) return;
   capturando.value = true;
 
   try {
     let frameBlob = null;
+    const cid = idCamaraPtz.value || String(props.camara?.id || '').replace(/\D/g, '');
 
+    // 1. Si está conectado el servicio WebControl local (Hikvision/HCVideoSDK)
     if (webControlConectado.value) {
       try {
         const b64 = await webControlService.capturarSnapshot();
@@ -466,9 +486,26 @@ async function capturarFrame() {
       }
     }
 
-    // 2. Si hay un elemento <video> en el reproductor web
+    // 2. Extraer frame directamente de elemento <video> en el DOM o iframe
     if (!frameBlob) {
-      const videoEl = document.querySelector('#playWnd video') || document.querySelector('.cam-player-box video') || document.querySelector('video');
+      let videoEl = null;
+
+      if (iframeRef.value) {
+        try {
+          const iframeDoc = iframeRef.value.contentDocument || iframeRef.value.contentWindow?.document;
+          if (iframeDoc) {
+            videoEl = iframeDoc.querySelector('video');
+          }
+        } catch (_) {}
+      }
+
+      if (!videoEl) {
+        videoEl = document.querySelector('#playWnd video') ||
+                  document.querySelector('.cam-player-box video') ||
+                  document.querySelector('.cam-player-mini video') ||
+                  document.querySelector('video');
+      }
+
       if (videoEl && videoEl.videoWidth > 0 && !videoEl.paused) {
         const canvas = document.createElement('canvas');
         canvas.width = videoEl.videoWidth;
@@ -479,30 +516,106 @@ async function capturarFrame() {
       }
     }
 
-    // 3. Si hay un elemento <canvas> renderizando video en el reproductor
+    // 3. Captura directa conectando una sesión WebRTC en memoria (WHEP / WebRTC directo al servidor)
+    if (!frameBlob && cid) {
+      try {
+        const webrtcUrl = `https://hls.ai.telconet.net/webrtc-cam/stream-${cid}/whep`;
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+        pc.addTransceiver('video', { direction: 'recvonly' });
+
+        const videoPromise = new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Timeout WebRTC')), 2800);
+          pc.ontrack = (event) => {
+            clearTimeout(timer);
+            const remoteVideo = document.createElement('video');
+            remoteVideo.srcObject = event.streams[0] || new MediaStream([event.track]);
+            remoteVideo.muted = true;
+            remoteVideo.playsInline = true;
+            remoteVideo.onloadedmetadata = async () => {
+              try {
+                await remoteVideo.play();
+                setTimeout(() => resolve(remoteVideo), 150);
+              } catch (e) {
+                resolve(remoteVideo);
+              }
+            };
+          };
+        });
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        const whepResp = await fetch(webrtcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/sdp' },
+          body: offer.sdp
+        });
+
+        if (whepResp.ok) {
+          const answerSdp = await whepResp.text();
+          await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+          const remoteVideo = await videoPromise;
+          if (remoteVideo && remoteVideo.videoWidth > 0) {
+            const canvas = document.createElement('canvas');
+            canvas.width = remoteVideo.videoWidth;
+            canvas.height = remoteVideo.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(remoteVideo, 0, 0, canvas.width, canvas.height);
+            frameBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+          }
+        }
+        pc.close();
+      } catch (errWebrtc) {
+        console.debug('[Snapshot] Intento WHEP directo:', errWebrtc);
+      }
+    }
+
+    // 4. Extraer frame de un <canvas> de renderizado existente
     if (!frameBlob) {
-      const canvasEl = document.querySelector('#playWnd canvas') || document.querySelector('.cam-player-box canvas');
+      let canvasEl = null;
+
+      if (iframeRef.value) {
+        try {
+          const iframeDoc = iframeRef.value.contentDocument || iframeRef.value.contentWindow?.document;
+          if (iframeDoc) {
+            canvasEl = iframeDoc.querySelector('canvas');
+          }
+        } catch (_) {}
+      }
+
+      if (!canvasEl) {
+        canvasEl = document.querySelector('#playWnd canvas') ||
+                   document.querySelector('.cam-player-box canvas') ||
+                   document.querySelector('.cam-player-mini canvas');
+      }
+
       if (canvasEl && canvasEl.width > 50 && canvasEl.height > 50) {
         frameBlob = await new Promise((resolve) => canvasEl.toBlob(resolve, 'image/jpeg', 0.95));
       }
     }
 
-    // 4. Si no se obtuvo una imagen real del flujo
+    // 5. Validar resultado final
     if (!frameBlob || frameBlob.size < 500) {
-      toast.warning('No se detectó señal de video activa en el stream para capturar el fotograma. Asegúrese de que la cámara esté transmitiendo.');
+      toast.warning('No se pudo extraer el fotograma del stream. Verifique que la transmisión esté activa.');
       return;
     }
 
-    const filename = `snapshot-${props.camara?.id || 'cvvc'}-${Date.now()}.jpg`;
-    const frameFile = new File([frameBlob], filename, { type: 'image/jpeg' });
+    // Construir nombre del archivo con el nombre de la cámara y fecha/hora: [NombreCamara]_[Timestamp].jpg
+    const sanitizar = (str) => String(str || '').replace(/[\\/:*?"<>|]+/g, '_').trim().replace(/\s+/g, '_');
+    const camTag = sanitizar(props.camara?.nombre || `Cam_${props.camara?.id || 'PTZ'}`);
+    
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const timeTag = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 
-    emit('capturar-frame', {
-      camara: props.camara,
-      file: frameFile,
-      novedad: novedadDestino.value
-    });
+    const filename = `${camTag}_${timeTag}.jpg`;
+    
+    // Descargar automáticamente en la máquina del usuario
+    descargarBlobEnDisco(frameBlob, filename);
 
-    toast.success(`Fotograma real de cámara #${props.camara?.id || ''} capturado exitosamente.`);
+    toast.success(`Fotograma guardado en su equipo: ${filename}`);
   } catch (err) {
     console.error('Error capturando frame:', err);
     toast.error('No se pudo capturar el fotograma de la cámara.');

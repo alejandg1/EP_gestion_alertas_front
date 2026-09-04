@@ -28,6 +28,7 @@ export function obtenerEventosSIGPorFecha(novedades, fecha) {
       hora: item.hora_evento || item.hora || '00:00',
       aga: item.aga || 'N/D',
       dir: item.direccion || item.dir || '',
+      ficha: item.ficha || item.numero_ficha || item.datos_adicionales?.ficha || '',
       recurso: item.recurso_asignado || item.recurso || 'INS-ALC 🚙',
       estado: item.estado_operativo || item.estado || '⛔PENDIENTE',
       lat: Number(item.coordenadas?.lat ?? item.latitud ?? item.lat),
@@ -105,6 +106,7 @@ function textoUTF8Limitado(valor, longitud) {
 function crearDBFEventos(eventos) {
   const campos = [
     { nombre: "ID_EVENTO", tipo: "N", longitud: 8, decimales: 0, valor: item => item.id_evento },
+    { nombre: "FICHA", tipo: "C", longitud: 20, decimales: 0, valor: item => item.ficha || "" },
     { nombre: "TIPO", tipo: "C", longitud: 24, decimales: 0, valor: item => textoEventoIndividual[item.tipo] || item.tipo },
     { nombre: "FECHA", tipo: "D", longitud: 8, decimales: 0, valor: item => (item.fecha || "").replace(/-/g, "") },
     { nombre: "HORA", tipo: "C", longitud: 5, decimales: 0, valor: item => item.hora || "" },
